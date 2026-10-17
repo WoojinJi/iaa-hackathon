@@ -1,0 +1,14 @@
+# Competition data: do not commit (redistribution and size)
+data/
+*.parquet
+*.csv
+
+# Environment and editor files
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+*.zip
+*.docx
+*.zip
+*.docx rm docs/decision_log.md
