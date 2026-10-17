@@ -12,3 +12,4 @@ __pycache__/
 *.docx
 *.zip
 *.docx rm docs/decision_log.md
+.pytest_cache/
