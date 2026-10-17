@@ -129,3 +129,60 @@ def completeness(matched, peril, year, ref_year=2021,
     ages = (valuation_date - pd.date_range(f"{year}-01-01", f"{year}-12-31")).days.to_numpy()
     idx = np.searchsorted(ref["report_lag"].to_numpy(), ages, side="right")
     return float(np.where(idx > 0, cum[idx - 1], 0.0).mean())
+# ------------------------------------------------------- modelling target (motor)
+TARGET_YEAR = 2025
+
+MOTOR_ADJ = {
+    # Annual severity trend, gross of excess (notebook 02, section 10)
+    "sev_trend": {"bodily_injury": 0.0, "glass_hail": 0.08, "own_damage": 0.04,
+                  "theft": 0.03, "third_party_prop": 0.08},
+    # BI losses before 2023 are on-levelled to the post-reform cost level
+    "bi_reform_factor": 0.83,
+    # Frequency level shift in 2023, applied to losses before 2023
+    "freq_shift": {"own_damage": 0.93, "third_party_prop": 0.95},
+}
+
+
+def adjust_motor_claims(matched, adj=MOTOR_ADJ, target_year=TARGET_YEAR, cap=LARGE_LOSS_CAP):
+    """Bring each matched motor claim to the target-year level.
+
+    Severity trend and the BI reform factor scale incurred and recoveries (excess is fixed);
+    the net is capped; the frequency shift then scales pre-2023 claims of the affected perils.
+    Adds net_adj.
+    """
+    c = matched.copy()
+    pre = c["loss_year"] < 2023
+    sev = (1 + c["peril"].map(adj["sev_trend"]).fillna(0.0)) ** (target_year - c["loss_year"])
+    sev = np.where(pre & (c["peril"] == "bodily_injury"), sev * adj["bi_reform_factor"], sev)
+    gross = c["incurred_to_date"] * sev
+    rec = c["recoveries"] * sev
+    net = np.maximum(np.maximum(gross - c["excess"], 0) - rec, 0)
+    freq = np.where(pre, c["peril"].map(adj["freq_shift"]).fillna(1.0), 1.0)
+    c["net_adj"] = np.minimum(net, cap) * freq
+    return c
+
+
+def year_completeness(adjusted, years=YEARS):
+    """Line-level completeness by loss year: reported / ultimate, on adjusted amounts."""
+    out = {}
+    for y in years:
+        rep = adjusted[adjusted["loss_year"] == y]
+        ult = sum(rep.loc[rep["peril"] == p, "net_adj"].sum() / completeness(adjusted, p, y)
+                  for p in rep["peril"].unique())
+        out[y] = rep["net_adj"].sum() / ult
+    return pd.Series(out, name="completeness")
+
+
+def build_model_target(claims, policies, adj=MOTOR_ADJ):
+    """Motor modelling frame: row_id, year, target (2025 level) and weight.
+
+    weight = exposure_clean x completeness of the policy year, so immature years count
+    as partially observed exposure instead of having their losses grossed up row by row.
+    """
+    mc = adjust_motor_claims(match_claims(claims, policies, "motor", cap=None), adj)
+    per_row = mc.groupby("row_id")["net_adj"].sum()
+    comp = year_completeness(mc)
+    df = policies[["row_id", "year", "exposure_clean"]].copy()
+    df["target"] = df["row_id"].map(per_row).fillna(0.0)
+    df["weight"] = df["exposure_clean"] * df["year"].map(comp)
+    return df, comp

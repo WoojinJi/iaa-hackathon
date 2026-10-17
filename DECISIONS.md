@@ -85,16 +85,22 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability:
 
 ### Motor trends [§10]
 - **Finding:** Gross-of-excess severity trends per year: glass_hail +8%, third_party_prop +8%, own_damage +4%, theft +3%. Net-of-excess medians rise faster (e.g. own_damage 13%) because of the fixed-excess leverage effect.
-- **Finding:** Frequency is flat or slightly down; own_damage and third_party_prop step down in 2023. Not yet trended pending a portfolio-mix check.
+- **Finding:** Frequency is flat or slightly down; own_damage and third_party_prop step down in 2023. See Motor frequency below.
 
-- **Decision:** Exclude claims that fall outside any policy period (after de-duplication: motor 293, buildings 67, contents 49). [§4]
-  - **Evidence:** Match rates are 99.74% (motor), 99.75% (buildings) and 99.79% (contents), with no claim matching more than one period. Unmatched claims are mostly 2020 losses (before any policy starts); the rest fall in gaps between a policy's periods.
+### Motor frequency [notebook 03]
+- **Finding:** own_damage and third_party_prop frequency step down in 2023 (about −7% and −5%) and stay at the lower level in 2024. Portfolio mix changes only gradually (driver_assist, telematics, cover type), and the drop appears within every driver_assist and telematics group, so mix does not explain it.
+- **Decision:** Treat 2023 as a level shift, not a trend. On-level 2021–2022 frequency by 0.93 (own_damage) and 0.95 (third_party_prop); no frequency trend for other perils.
+- **Observation:** Telematics opt-in policies have higher frequency than others, possibly adverse selection.
 
+### Motor modelling target [notebook 03, src/target.py]
+- **Decision:** Build the motor target at 2025 level per claim: trend incurred and recoveries by peril severity trend (excess fixed), apply the BI reform factor (0.83) and frequency shift (0.93 / 0.95) to pre-2023 losses, deduct excess (none on liability perils), cap at 500,000. Immaturity is handled by weighting exposure with the year's completeness (1.000 / 0.997 / 0.979 / 0.816), not by grossing up individual rows.
+  - **Evidence:** Adjusted cost per weighted exposure is consistent across years: 550.8 / 548.4 / 551.0 / 540.0 (2021–2024), compared with 550.7 / 547.0 / 539.2 / 440.6 before the completeness weight.
+  - **Limitation:** 2024 is about 2% lower, consistent with case-reserve development on open BI claims and amount-based completeness being about 2% below count-based; not adjusted.
+- **Expected 2025 level:** about 548 per exposure, plus a large-loss loading of about 15.
 
 ---
 
 ## Open questions
-- Is the 2023 drop in own_damage / third_party_prop frequency portfolio mix (driver_assist, telematics, new business)?
 - Completeness adjustment and trend split (frequency vs severity, weather vs inflation) for buildings and contents.
 - Contents cost jumps about 12% in 2023: which perils?
 - `customer_service_contacts`: possible leakage (present in test, but may respond to claims during the period).
