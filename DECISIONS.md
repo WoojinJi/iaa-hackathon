@@ -39,7 +39,7 @@ below are inferred from the data.
   - Frequency = (claims with net cost > 0) / exposure; severity = net cost / (claims with net cost > 0), so frequency × severity = net cost / exposure.
   - Zero-cost claims do not affect the target, but a past claim attempt can still signal risk. Open claims with zero incurred are not treated as zero-cost, since they may develop.
 - **Observation:** Closed claims have paid = incurred. Open claims carry case reserves (76–78% of open incurred). Recoveries appear only on closed motor claims (7.3% of closed motor incurred), mainly `own_damage` and `theft`.
-
+- **Check:** After de-duplication, only 51 motor rows have more than one claim on the same loss date (about 40 with different perils), so applying excess per claim rather than per event has negligible effect.
 ---
 
 ## 2026-10-17 — Corrections, large losses, development, BI change
@@ -87,10 +87,13 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability:
 - **Finding:** Gross-of-excess severity trends per year: glass_hail +8%, third_party_prop +8%, own_damage +4%, theft +3%. Net-of-excess medians rise faster (e.g. own_damage 13%) because of the fixed-excess leverage effect.
 - **Finding:** Frequency is flat or slightly down; own_damage and third_party_prop step down in 2023. Not yet trended pending a portfolio-mix check.
 
+- **Decision:** Exclude claims that fall outside any policy period (after de-duplication: motor 293, buildings 67, contents 49). [§4]
+  - **Evidence:** Match rates are 99.74% (motor), 99.75% (buildings) and 99.79% (contents), with no claim matching more than one period. Unmatched claims are mostly 2020 losses (before any policy starts); the rest fall in gaps between a policy's periods.
+
+
 ---
 
 ## Open questions
-- Match rates and unmatched counts for buildings and contents (computed in notebook §4; to be recorded here).
 - Is the 2023 drop in own_damage / third_party_prop frequency portfolio mix (driver_assist, telematics, new business)?
 - Completeness adjustment and trend split (frequency vs severity, weather vs inflation) for buildings and contents.
 - Contents cost jumps about 12% in 2023: which perils?
