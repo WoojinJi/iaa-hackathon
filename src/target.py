@@ -123,43 +123,76 @@ def completeness(matched, peril, year, ref_year=2021,
     the share is amount-weighted instead of count-based.
     """
     ref = matched[(matched["peril"] == peril) & (matched["loss_year"] == ref_year)]
+    if ref.empty:
+        # No reference claims for this peril: no basis for a delay pattern, assume complete.
+        return 1.0
     ref = ref.sort_values("report_lag")
     w = np.ones(len(ref)) if weight_col is None else ref[weight_col].to_numpy()
     cum = np.cumsum(w) / w.sum()
     ages = (valuation_date - pd.date_range(f"{year}-01-01", f"{year}-12-31")).days.to_numpy()
     idx = np.searchsorted(ref["report_lag"].to_numpy(), ages, side="right")
     return float(np.where(idx > 0, cum[idx - 1], 0.0).mean())
-# ------------------------------------------------------- modelling target (motor)
+
+
+# ------------------------------------------------------------ modelling target
 TARGET_YEAR = 2025
 
-MOTOR_ADJ = {
-    # Annual severity trend, gross of excess (notebook 02, section 10)
-    "sev_trend": {"bodily_injury": 0.0, "glass_hail": 0.08, "own_damage": 0.04,
-                  "theft": 0.03, "third_party_prop": 0.08},
-    # BI losses before 2023 are on-levelled to the post-reform cost level
-    "bi_reform_factor": 0.83,
-    # Frequency level shift in 2023, applied to losses before 2023
-    "freq_shift": {"own_damage": 0.93, "third_party_prop": 0.95},
+# Adjustments that bring each line's claims to the 2025 cost level.
+# sev_trend:  annual severity trend by peril, applied to gross amounts (excess is fixed)
+# reform:     factor for losses before reform_year, by peril (cost-level change)
+# freq_shift: factor for losses before reform_year, by peril (frequency level change)
+# cap:        individual claim cap for modelling (None = no cap)
+ADJ = {
+    "motor": {   # notebook 02 sections 9-10, notebook 03
+        "sev_trend": {"bodily_injury": 0.0, "glass_hail": 0.08, "own_damage": 0.04,
+                      "theft": 0.03, "third_party_prop": 0.08},
+        "reform": {"bodily_injury": 0.83},
+        "freq_shift": {"own_damage": 0.93, "third_party_prop": 0.95},
+        "cap": 500_000,
+    },
+    "buildings": {   # notebook 04
+        "sev_trend": {"accidental_damage": 0.03, "escape_of_water": 0.08, "fire": 0.0,
+                      "flood": 0.07, "storm": 0.08, "subsidence": 0.07},
+        "reform": {}, "freq_shift": {},
+        "cap": 300_000,   # just above the 99.9th percentile (same rule as motor); final level by validation
+    },
+    "contents": {   # notebook 04
+        "sev_trend": {"accidental_damage": 0.03, "escape_of_water": 0.03,
+                      "flood": 0.05, "theft": 0.04},
+        "reform": {}, "freq_shift": {},
+        "cap": None,
+    },
 }
+REFORM_YEAR = 2023
+MOTOR_ADJ = ADJ["motor"]   # kept for backward compatibility
 
 
-def adjust_motor_claims(matched, adj=MOTOR_ADJ, target_year=TARGET_YEAR, cap=LARGE_LOSS_CAP):
-    """Bring each matched motor claim to the target-year level.
+def adjust_claims(matched, adj, target_year=TARGET_YEAR, reform_year=REFORM_YEAR):
+    """Bring each matched claim to the target-year level. Adds net_adj and net_adj_uncapped.
 
-    Severity trend and the BI reform factor scale incurred and recoveries (excess is fixed);
-    the net is capped; the frequency shift then scales pre-2023 claims of the affected perils.
-    Adds net_adj.
+    Severity trend and reform factors scale incurred and recoveries (excess is fixed);
+    the net is capped; the frequency shift then scales pre-reform claims of the affected perils.
     """
     c = matched.copy()
-    pre = c["loss_year"] < 2023
+    pre = c["loss_year"] < reform_year
     sev = (1 + c["peril"].map(adj["sev_trend"]).fillna(0.0)) ** (target_year - c["loss_year"])
-    sev = np.where(pre & (c["peril"] == "bodily_injury"), sev * adj["bi_reform_factor"], sev)
+    sev = sev * np.where(pre, c["peril"].map(adj["reform"]).fillna(1.0), 1.0)
     gross = c["incurred_to_date"] * sev
     rec = c["recoveries"] * sev
     net = np.maximum(np.maximum(gross - c["excess"], 0) - rec, 0)
     freq = np.where(pre, c["peril"].map(adj["freq_shift"]).fillna(1.0), 1.0)
-    c["net_adj"] = np.minimum(net, cap) * freq
+    cap = adj["cap"]
+    c["net_adj_uncapped"] = net * freq
+    c["net_adj"] = (net if cap is None else np.minimum(net, cap)) * freq
     return c
+
+
+def adjust_motor_claims(matched, adj=MOTOR_ADJ, target_year=TARGET_YEAR, cap=None):
+    """Motor wrapper around adjust_claims (kept for backward compatibility)."""
+    a = dict(adj)
+    if cap is not None:
+        a["cap"] = cap
+    return adjust_claims(matched, a, target_year)
 
 
 def year_completeness(adjusted, years=YEARS):
@@ -173,16 +206,20 @@ def year_completeness(adjusted, years=YEARS):
     return pd.Series(out, name="completeness")
 
 
-def build_model_target(claims, policies, adj=MOTOR_ADJ):
-    """Motor modelling frame: row_id, year, target (2025 level) and weight.
+def build_model_target(claims, policies, line="motor", adj=None):
+    """Modelling frame for one line: row_id, year, exposure_clean, target (2025 level), weight.
 
     weight = exposure_clean x completeness of the policy year, so immature years count
     as partially observed exposure instead of having their losses grossed up row by row.
+    Also returns the completeness by year and the large-loss loading per exposure
+    (capped-off cost at 2025 level, spread over all weighted exposure).
     """
-    mc = adjust_motor_claims(match_claims(claims, policies, "motor", cap=None), adj)
+    adj = ADJ[line] if adj is None else adj
+    mc = adjust_claims(match_claims(claims, policies, line, cap=None), adj)
     per_row = mc.groupby("row_id")["net_adj"].sum()
     comp = year_completeness(mc)
     df = policies[["row_id", "year", "exposure_clean"]].copy()
     df["target"] = df["row_id"].map(per_row).fillna(0.0)
     df["weight"] = df["exposure_clean"] * df["year"].map(comp)
-    return df, comp
+    loading = (mc["net_adj_uncapped"] - mc["net_adj"]).sum() / df["weight"].sum()
+    return df, comp, loading

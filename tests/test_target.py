@@ -15,7 +15,7 @@ import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from src.target import (  # noqa: E402
-    adjust_motor_claims, build_model_target, build_target, completeness,
+    ADJ, adjust_claims, adjust_motor_claims, build_model_target, build_target, completeness,
     load_claims, load_policies, match_claims,
 )
 
@@ -196,6 +196,26 @@ def test_model_weight_is_exposure_times_completeness(tmp_path):
     pols = [policy(f"R{y}", "P1", f"{y}-01-01", f"{y}-12-31") for y in (2021, 2022, 2023, 2024)]
     c = [claim(f"C{y}", "P1", "own_damage", f"{y}-03-01", 1000) for y in (2021, 2022, 2023, 2024)]
     pol, cl = write_data(tmp_path, pols, c)
-    df, comp = build_model_target(cl, pol)
+    df, comp, _ = build_model_target(cl, pol)
     assert np.allclose(comp.values, [1.0, 1.0, 1.0, 365 / 366])
     assert np.allclose(df["weight"], df["exposure_clean"] * df["year"].map(comp))
+
+
+def test_home_trend_and_cap(tmp_path):
+    # buildings fire 2024, trend 0%, excess 300, cap 300,000:
+    # 600,000 - 300 = 599,700 -> capped at 300,000; loading carries the 299,700 above the cap
+    pol, cl = write_data(tmp_path, [policy("R1", "P1", "2024-01-01", "2024-12-31")],
+                         [claim("C1", "P1", "fire", "2024-03-01", 600_000, line="buildings")],
+                         line="buildings")
+    df, comp, loading = build_model_target(cl, pol, "buildings")
+    assert df["target"].iloc[0] == pytest.approx(300_000)
+    assert loading * df["weight"].sum() == pytest.approx(299_700)
+
+
+def test_contents_trend_no_cap(tmp_path):
+    # contents theft 2022, trend 4%: 10,000 x 1.04^3 = 11,248.64; minus 300 excess = 10,948.64
+    pol, cl = write_data(tmp_path, [policy("R1", "P1", "2022-01-01", "2022-12-31")],
+                         [claim("C1", "P1", "theft", "2022-03-01", 10_000, line="contents")],
+                         line="contents")
+    m = adjust_claims(match_claims(cl, pol, "contents", cap=None), ADJ["contents"])
+    assert m["net_adj"].iloc[0] == pytest.approx(10_948.64)

@@ -100,6 +100,29 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability:
 
 ---
 
+## 2026-10-18 — Modelling plan (set before seeing any model results)
+
+### Evaluation and validation
+- **Decision:** Use Tweedie deviance with power 1.5 as the primary metric, reported as D² (1 − model deviance / deviance of a constant-rate model).
+  - **Evidence:** This is the competition's scoring metric. The target has many zeros and a long right tail, which suits a Tweedie distribution; MSE would be dominated by a few large claims, and Cp/AIC assume a normal-error linear model.
+- **Decision:** Main validation is out-of-time: train on policy years 2021–2023, evaluate on 2024 using the completeness-weighted exposure.
+  - **Evidence:** This mirrors the real task (past years predicting a future year). 2024 is immature, so its weight reflects the share of claims reported so far.
+- **Decision:** Secondary validation is 5-fold cross-validation grouped by `policy_id`.
+  - **Evidence:** Renewals of the same policy are correlated; splitting them across train and test folds would overstate performance.
+- **Supporting checks:** overall actual-to-expected ratio (should be close to 1.00), lift chart, double lift between models, Gini, and actual-to-expected by key segments (young drivers, flood zones, new business).
+- **Guardrail:** Model choice is based on validation results, not the Kaggle leaderboard, to avoid overfitting the public test split. The only exception is the open excess question, which validation data cannot answer.
+
+### Candidate models
+- **Tweedie GLM** (power 1.5, log link), target = adjusted cost per weighted exposure, weight = exposure × completeness. Baseline; coefficients give rating relativities that can be explained directly.
+- **LightGBM** with Tweedie objective (power 1.5), same target and weights. Captures non-linear effects and interactions.
+- **Combination:** either a weighted average of the two (blend weight chosen on 2024 validation) or LightGBM trained to correct the GLM (GLM prediction as offset).
+- **Decision rule:** prefer the simpler, more explainable model unless the more complex one improves validation deviance meaningfully and passes the segment checks.
+
+### Prediction
+- **Row prediction** = (predicted cost per exposure + large-loss loading) × test `exposure`, floored at 0; one CSV for all three lines.
+- **Feature selection:** variables are kept if they improve cross-validated deviance and their effect is actuarially sensible (sign and size); LightGBM features are reviewed with importance and SHAP.
+---
+
 ## Open questions
 - Completeness adjustment and trend split (frequency vs severity, weather vs inflation) for buildings and contents.
 - Contents cost jumps about 12% in 2023: which perils?
@@ -107,3 +130,5 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability:
 - `weather`: are 2025 values available for test addresses?
 - `prior_claims_5y` (customers) vs history built from the claims table.
 - Evaluation metric for the competition (affects whether the large-loss loading matters).
+- Excess on liability perils: posted on the Kaggle forum (Oct 18); if unanswered, compare both versions on the leaderboard.
+- Final model structure (GLM, LightGBM, or combination): to be decided by Oct 21 using the rules above.
