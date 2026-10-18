@@ -152,6 +152,10 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability:
 - Motor is consistent within 2%. Home lines vary by about 8%, which is expected because weather differs by year. Buildings 2024 is high mainly because of subsidence (+18.6 per exposure), which relies on the 0.69 completeness estimate; reported subsidence cost alone is in line with earlier years. Contents 2022 is low because of flood.
 - **Expected 2025 level (including large-loss loading):** motor about 564, buildings about 467, contents about 106 per exposure.
 - **Limitation:** Buildings 2024 subsidence completeness is the main source of uncertainty for buildings.
+### Recoveries on open claims
+- **Decision:** No adjustment; recorded as a limitation.
+  - **Evidence:** Recoveries are recorded only on closed claims (own_damage 23.6% of incurred, theft 4.0%). Applying these rates to open claims would reduce the motor target by 0.34% in total, and by 1.6% for 2024 losses, where open claims concentrate.
+  - **Implication:** 2024 actual cost is slightly overstated, which explains up to 1.6 points of the 2024 validation A/E above 1.
 ---
 
 ## Open questions
