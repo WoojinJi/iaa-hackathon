@@ -219,3 +219,18 @@ def test_contents_trend_no_cap(tmp_path):
                          line="contents")
     m = adjust_claims(match_claims(cl, pol, "contents", cap=None), ADJ["contents"])
     assert m["net_adj"].iloc[0] == pytest.approx(10_948.64)
+
+
+# --------------------------------------------------------------- evaluation
+def test_d2_perfect_and_constant():
+    from src.evaluate import d2_tweedie
+    actual = np.array([0.0, 0.0, 100.0, 300.0])
+    base = np.full(4, actual.mean())
+    assert d2_tweedie(actual, actual + 1e-9, base) == pytest.approx(1.0, abs=1e-4)   # perfect model (tiny floor on zero rows)
+    assert d2_tweedie(actual, base, base) == pytest.approx(0.0)                       # constant model
+
+
+def test_leakage_columns_never_used_as_features():
+    from src.features import EXCLUDE
+    for col in ["renewal_decision", "customer_service_contacts", "written_premium", "row_id", "exposure"]:
+        assert col in EXCLUDE

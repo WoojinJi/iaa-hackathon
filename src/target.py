@@ -202,7 +202,7 @@ def year_completeness(adjusted, years=YEARS):
         rep = adjusted[adjusted["loss_year"] == y]
         ult = sum(rep.loc[rep["peril"] == p, "net_adj"].sum() / completeness(adjusted, p, y)
                   for p in rep["peril"].unique())
-        out[y] = rep["net_adj"].sum() / ult
+        out[y] = rep["net_adj"].sum() / ult if ult > 0 else 1.0   # no claims that year: nothing to develop
     return pd.Series(out, name="completeness")
 
 
