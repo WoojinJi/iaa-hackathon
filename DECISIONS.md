@@ -121,6 +121,37 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability:
 ### Prediction
 - **Row prediction** = (predicted cost per exposure + large-loss loading) × test `exposure`, floored at 0; one CSV for all three lines.
 - **Feature selection:** variables are kept if they improve cross-validated deviance and their effect is actuarially sensible (sign and size); LightGBM features are reviewed with importance and SHAP.
+
+
+## 2026-10-18 — Buildings and contents adjustments [notebook 04]
+
+### Development
+- **Finding:** Only buildings `subsidence` is long-tailed (median report lag 85 days, 90th percentile 254); its 2024 completeness is 0.69. All other home perils are at least 95% complete in 2024.
+
+### Severity trends (gross of excess)
+- **Decision:** Buildings: escape_of_water 8%, flood 7%, storm 8%, subsidence 7%, accidental_damage 3%, fire 0% a year. Contents: theft 4%, flood 5%, escape_of_water 3%, accidental_damage 3%.
+  - **Evidence:** Quarterly medians rise gradually (e.g. escape_of_water 3.3–3.6k in 2021 to 4.0–4.6k in 2024), and the 2023–24 vs 2021–22 change matches what a steady trend implies, so these are treated as inflation, not a step change. Storm severity rises mainly from late 2023 (sensitivity).
+
+### Frequency and weather
+- **Finding:** Frequency rises strongly with the matching weather variable: subsidence 3.1x from lowest to highest `dry_summer_index` quintile, flood 2.5x (`rainfall_mm`), storm 1.9x (`wind_exposure_index`), fire 1.8x (`wildfire_index`). The rise in subsidence frequency over 2021–2024 tracks drier summers.
+- **Decision:** No frequency trend for weather-driven perils; weather enters the model as features. 2025 weather is available for 100% of test addresses.
+  - **Practicality note:** In real pricing, next year's weather is unknown. We will report a sensitivity using each address's average past weather instead of 2025 values.
+- **Open:** Buildings fire and contents theft frequency rise steadily (about 8% and 3% a year) without a weather explanation. Decide on a frequency trend from out-of-time validation (do models trained on 2021–23 under-predict these perils in 2024?).
+
+### Large losses
+- **Decision:** Buildings cap 300,000 (just above the 99.9th percentile, the same rule as motor), large-loss loading 2.3 per exposure; contents no cap (maximum claim 111,300). Final cap levels to be chosen by validation among none / 99.9th percentile rule / lower.
+
+### Check: 2025-level cost per weighted exposure
+| Year | Motor | Buildings | Contents |
+|---|---|---|---|
+| 2021 | 550.8 | 456.4 | 106.1 |
+| 2022 | 548.4 | 452.9 | 101.1 |
+| 2023 | 551.0 | 460.6 | 109.0 |
+| 2024 | 540.0 | 488.5 | 108.1 |
+
+- Motor is consistent within 2%. Home lines vary by about 8%, which is expected because weather differs by year. Buildings 2024 is high mainly because of subsidence (+18.6 per exposure), which relies on the 0.69 completeness estimate; reported subsidence cost alone is in line with earlier years. Contents 2022 is low because of flood.
+- **Expected 2025 level (including large-loss loading):** motor about 564, buildings about 467, contents about 106 per exposure.
+- **Limitation:** Buildings 2024 subsidence completeness is the main source of uncertainty for buildings.
 ---
 
 ## Open questions
