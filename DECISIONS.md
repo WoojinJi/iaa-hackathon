@@ -155,8 +155,7 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability:
 ---
 
 ## Open questions
-- Completeness adjustment and trend split (frequency vs severity, weather vs inflation) for buildings and contents.
-- Contents cost jumps about 12% in 2023: which perils?
+
 - `customer_service_contacts`: possible leakage (present in test, but may respond to claims during the period).
 - `weather`: are 2025 values available for test addresses?
 - `prior_claims_5y` (customers) vs history built from the claims table.
