@@ -76,11 +76,12 @@ def load_claims(data_dir=DATA_DIR, drop_duplicates=True, drop_repudiated=True):
     return c
 
 
-def match_claims(claims, policies, line, excess_on_liability=False, cap=LARGE_LOSS_CAP):
+def match_claims(claims, policies, line, excess_on_liability=True, cap=LARGE_LOSS_CAP):
     """Attach each claim to the policy period containing its loss date.
 
     Returns one row per matched claim with:
-      excess   = voluntary + compulsory (0 for liability perils unless excess_on_liability)
+      excess   = voluntary + compulsory, on every peril (host confirmed on the Kaggle forum, Oct 19);
+                 excess_on_liability=False keeps the earlier reading (0 for liability perils)
       net      = max(max(incurred - excess, 0) - recoveries, 0)
       net_cap  = min(net, cap)   (equal to net when cap is None)
     """
@@ -96,7 +97,7 @@ def match_claims(claims, policies, line, excess_on_liability=False, cap=LARGE_LO
     return c
 
 
-def build_target(claims, policies, line, excess_on_liability=False, cap=None):
+def build_target(claims, policies, line, excess_on_liability=True, cap=None):
     """Target per row_id = sum of per-claim net cost (0 for rows with no claims).
 
     cap=None gives the uncapped target; pass LARGE_LOSS_CAP for the modelling target.
@@ -206,16 +207,18 @@ def year_completeness(adjusted, years=YEARS):
     return pd.Series(out, name="completeness")
 
 
-def build_model_target(claims, policies, line="motor", adj=None):
+def build_model_target(claims, policies, line="motor", adj=None, excess_on_liability=True):
     """Modelling frame for one line: row_id, year, exposure_clean, target (2025 level), weight.
 
     weight = exposure_clean x completeness of the policy year, so immature years count
     as partially observed exposure instead of having their losses grossed up row by row.
     Also returns the completeness by year and the large-loss loading per exposure
     (capped-off cost at 2025 level, spread over all weighted exposure).
+    excess_on_liability=True (default): excess applies to every peril, as confirmed by the host.
+    False reproduces the earlier assumption (no excess on bodily_injury / third_party_prop).
     """
     adj = ADJ[line] if adj is None else adj
-    mc = adjust_claims(match_claims(claims, policies, line, cap=None), adj)
+    mc = adjust_claims(match_claims(claims, policies, line, excess_on_liability, cap=None), adj)
     per_row = mc.groupby("row_id")["net_adj"].sum()
     comp = year_completeness(mc)
     df = policies[["row_id", "year", "exposure_clean"]].copy()

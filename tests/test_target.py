@@ -45,7 +45,7 @@ def write_data(tmp_path, policies, claims, line="motor"):
     return load_policies(line, "train", data_dir=tmp_path), load_claims(data_dir=tmp_path)
 
 
-def target_of(tmp_path, claims, excess_on_liability=False, cap=None):
+def target_of(tmp_path, claims, excess_on_liability=True, cap=None):
     pol, cl = write_data(tmp_path, [policy("R1", "P1", "2023-01-01", "2023-12-31")], claims)
     return build_target(cl, pol, "motor", excess_on_liability, cap)[0]
 
@@ -66,25 +66,26 @@ def test_claim_below_excess_is_zero(tmp_path):
     assert target_of(tmp_path, [claim("C1", "P1", "own_damage", "2023-05-01", 250)]) == 0
 
 
-def test_no_excess_on_liability_perils(tmp_path):
-    # bodily_injury 1,000: no excess by default -> 1,000; with excess on liability -> 700
+def test_excess_on_liability_perils(tmp_path):
+    # Host: excess applies to every peril. bodily_injury 1,000 - 300 excess = 700 by default;
+    # the earlier assumption (excess_on_liability=False) gives 1,000
     c = [claim("C1", "P1", "bodily_injury", "2023-05-01", 1000)]
-    assert target_of(tmp_path, c) == pytest.approx(1000)
-    assert target_of(tmp_path, c, excess_on_liability=True) == pytest.approx(700)
+    assert target_of(tmp_path, c) == pytest.approx(700)
+    assert target_of(tmp_path, c, excess_on_liability=False) == pytest.approx(1000)
 
 
 def test_large_loss_cap(tmp_path):
-    # bodily_injury 800,000 (no excess): uncapped 800,000; capped at 500,000
+    # bodily_injury 800,000 - 300 excess: uncapped 799,700; capped at 500,000
     c = [claim("C1", "P1", "bodily_injury", "2023-05-01", 800_000)]
-    assert target_of(tmp_path, c) == pytest.approx(800_000)
+    assert target_of(tmp_path, c) == pytest.approx(799_700)
     assert target_of(tmp_path, c, cap=500_000) == pytest.approx(500_000)
 
 
 def test_claims_in_a_row_are_summed(tmp_path):
-    # own_damage 1,000 -> 700; third_party_prop 500 (no excess) -> 500; total 1,200
+    # own_damage 1,000 - 300 = 700; third_party_prop 500 - 300 = 200; total 900
     c = [claim("C1", "P1", "own_damage", "2023-03-01", 1000),
          claim("C2", "P1", "third_party_prop", "2023-08-01", 500)]
-    assert target_of(tmp_path, c) == pytest.approx(1200)
+    assert target_of(tmp_path, c) == pytest.approx(900)
 
 
 # --------------------------------------------------------------- exposure
@@ -169,13 +170,13 @@ def adjusted_net(tmp_path, peril, loss, incurred, vol=200, comp=100):
 
 
 def test_bi_reform_factor(tmp_path):
-    # BI 2022, trend 0%: 10,000 x 0.83 = 8,300 (no excess on liability)
-    assert adjusted_net(tmp_path, "bodily_injury", "2022-06-01", 10_000) == pytest.approx(8_300)
+    # BI 2022, trend 0%: 10,000 x 0.83 = 8,300 gross; minus 300 excess = 8,000
+    assert adjusted_net(tmp_path, "bodily_injury", "2022-06-01", 10_000) == pytest.approx(8_000)
 
 
 def test_bi_after_reform_unchanged(tmp_path):
-    # BI 2023: no reform factor, trend 0% -> 10,000
-    assert adjusted_net(tmp_path, "bodily_injury", "2023-06-01", 10_000) == pytest.approx(10_000)
+    # BI 2023: no reform factor, trend 0% -> 10,000 - 300 excess = 9,700
+    assert adjusted_net(tmp_path, "bodily_injury", "2023-06-01", 10_000) == pytest.approx(9_700)
 
 
 def test_trend_applies_before_excess(tmp_path):
@@ -199,6 +200,16 @@ def test_model_weight_is_exposure_times_completeness(tmp_path):
     df, comp, _ = build_model_target(cl, pol)
     assert np.allclose(comp.values, [1.0, 1.0, 1.0, 365 / 366])
     assert np.allclose(df["weight"], df["exposure_clean"] * df["year"].map(comp))
+
+
+def test_model_target_excess_on_liability_option(tmp_path):
+    # bodily_injury 2024 (trend 0%, no reform factor from 2023): 1,000 - 300 excess = 700 by default;
+    # earlier assumption (excess_on_liability=False): 1,000
+    pol, cl = write_data(tmp_path, [policy("R1", "P1", "2024-01-01", "2024-12-31")],
+                         [claim("C1", "P1", "bodily_injury", "2024-03-01", 1000)])
+    assert build_model_target(cl, pol)[0]["target"].iloc[0] == pytest.approx(700)
+    df, _, _ = build_model_target(cl, pol, excess_on_liability=False)
+    assert df["target"].iloc[0] == pytest.approx(1000)
 
 
 def test_home_trend_and_cap(tmp_path):
