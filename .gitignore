@@ -13,3 +13,7 @@ __pycache__/
 *.zip
 *.docx rm docs/decision_log.md
 .pytest_cache/
+
+# local files
+results/
+/*.pdf
