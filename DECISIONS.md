@@ -261,7 +261,9 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 - **Context:** top 10 on the public leaderboard were 0.125–0.130 on Oct 19.
 
 ### Schedule
-- Part 1 closes Oct 23 (check the exact time; Kaggle default is 23:59 UTC = 19:59 ET). Final model fixed on Oct 22; Oct 23 for submission and checks only.
+- Part 1 closes Oct 23 (check the exact time on the Overview tab; the Rules tab shows placeholders). Final model fixed on Oct 22; Oct 23 for submission and checks only.
+- **One final submission only** (Rules 2.2.b), and it counts towards the overall result. It is **selected by hand** on Oct 23; otherwise Kaggle picks the best public score, which could be an experiment.
+- Pricing (40%) combines Part 1 and Part 2 private scores with the panel's view of modelling choices, adaptation, data quality and uncertainty (Rules 2.4.c). Final deliverables (report, video, repo) are due at the end of Part 2 and cover both parts. Winners must provide code that reproduces the submission (Rules 2.9).
 
 ## 2026-10-20 — Candidate features, weather, independent review, BI and completeness
 
@@ -301,16 +303,52 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 - **R4 not adopted: peril-level grossing** (−0.0001 D² on the same validation actuals).
 - **Reviewer findings rebutted with data:** BI understated by 10–12% (post-reform trend on closed claims is 1.2%); reform step about 0.71 (0.78–0.80 in every fit); frequency shifts as a completeness artefact (already completeness-adjusted on Oct 19).
 
+### Step-change scan [notebooks 16, 16b; rules S0–S2 fixed before results]
+- **Purpose:** find sudden level changes (law, claims handling, product) in every line × peril, on three date bases (loss date → law or environment; report date → handling or reserving; policy start → product or underwriting). Reusable on Part 2 data.
+- **S0 failed on monthly series:** the known BI step was found at the right date and size (2023-01, ×0.81) but below the threshold (dBIC 4.8); third-party property not found. The tool was changed to quarterly series and re-run (recorded as a fix after a failed control, not a change of threshold).
+- **Quarterly:** own damage frequency 2023 Q1 ×0.92 (dBIC 20.7); BI closed-claim severity 2023 Q1 ×0.78 (16.3; all claims 7.0 because open reserves add noise, consistent with E5). **No other step in any line or peril** above the threshold.
+- **Third-party property frequency:** best fit is a declining trend (−4.4% a year from 2022 Q1), not a 2023 step. Consistent with Oct 19 (2023 0.957, 2024 0.932: 2024 further down). If it is a trend, 2025 TPP frequency is about 4–6% below the 2023–24 level now assumed. **Open.**
+- **Policy side:** apparent February 2024 drops in motor vehicle_age and ncb_years are an artefact: January starts are a distinct cohort every year (renewals of long-standing policies: new business 1%, renewal count 7, vehicle age 9) and the same pattern repeats in January 2025. The policy scan now includes month-of-year effects. Vehicle age rises gradually over time (portfolio ageing); 2025 is close to 2024.
+- **Retention:** the share of renewed policies fell by about 19% from 2022, when average premium rose 13% (context only; renewal_decision is not a feature).
+- **Effect on the target:** none adopted (S2).
+
+### Year effects after rating factors; renewal checks [notebook 17; rules RA–RD fixed before results]
+- **RA — frequency by peril with a year factor plus all rating features.** After the features, frequency per risk rises about 1–2.5% a year in almost every peril, even where raw frequency is flat or falling (motor own damage raw 2024 0.939 → adjusted 1.069; TPP 0.938 → 1.031).
+  - **TPP: "mix".** Its raw decline is explained by the rating features, so the 0.95 shift on 2021–22 may count the same change twice. **Own damage:** the 2023 drop also largely disappears after the features (adjusted 1.072 / 1.052 / 1.069 for 2022–24). The Oct 17 mix check used two features only (driver_assist, telematics). Both shifts: **open** (see E6).
+  - **Buildings fire:** raw +25.5% by 2024, adjusted +6.1%: mostly mix (reviewer finding B4 largely resolved for fire).
+  - **Contents theft:** adjusted +7.3% (step); **glass:** +6% in 2023 (step). Both rise per risk; neither is adjusted in the target. **Open.**
+- **RB — validation A/E by new business, renewal count and past claims.** New business and renewal bands: no consistent bias (directions differ between years). **Policies with several past claims are under-priced:** hist_1y = 2+ A/E 1.25–3.26 in all lines; contents hist_1y = 1 A/E 1.21–1.71. Cause: ridge shrinks thinly populated levels hard. Weight 0.1–3%, so small for D², but customers with more claims pay too little. Contents uses LightGBM; to be checked there. **Open.**
+- **RC — renewals under a new policy_id:** none in any line (0 of 124–166k first periods). History linkage by policy_id is complete.
+- **RD — does yearly weather act as a year effect?** No: motor weather relativities are unchanged when a year factor is added (average change 0%). The v8 gain is not explained this way.
+
+### Time effect in the GLM (E6) [notebook 18; rules T1–T2 fixed before results]
+- **Mix decomposition (motor):** rating features alone imply the portfolio became 4.2% safer from 2021 to 2024 (predicted 0.958), while the on-levelled actual fell 1.9% (0.981). Drivers: ncb_years −4.0%, vehicle_age −2.7%, years_licensed −1.7% (features that change by themselves with time), and the history features (hist_1y −2.4%, hist_2y +3.5%), because history is unknown for every 2021 row (data start), so history levels partly carry the 2021 year effect.
+- **Variants (out-of-time):** year factor with prediction at the last training year's level (b1), the same with a log-linear trend extrapolated (b2), and both with the own damage / TPP shifts removed from the target (c1, c2).
+
+| Motor | D² change | A/E 2023 / 2024 | 2025 total |
+|---|---|---|---|
+| a current | — | 1.031 / 1.007 | — |
+| b1 latest level | +0.0000 | 1.023 / 0.997 | +0.43% (at 2023 level +0.73%) |
+| c1 latest level, no shifts | +0.0002 | 0.993 / 0.996 | +0.55% (+0.82%) |
+| b2 / c2 trend extrapolated | −0.0003 to −0.0015 | 0.91–0.94 | +3.3 to +4.0% |
+
+- **Not adopted (T1):** no variant reaches +0.0005 D². c1 has A/E closest to 1 in both years, but the rule fixed for this test was the D² threshold, and it is not changed after the result. Extrapolated trends over-predict in both years (year effects are not linear: 1.059 / 1.109 / 1.106).
+- **Buildings:** all variants fail; the 2025 total is +2.5% at the 2024 level but −2.3% at the 2023 level, so the latest year (dry, subsidence 69% complete) is not a reliable level. This was flagged as a caveat before the run.
+- **Conclusion:** the drift is real, but controlling for time changes the 2025 motor prediction by under 1%. The hypothesis that it explains the leaderboard's preference for a higher motor level is **not supported**. Kept as a documented check.
+
+### Reform boundary
+- Steps are applied by loss year (before / after 1 January 2023). The scan places the BI and own damage breaks at 2023-01 (monthly) and 2023 Q1 (quarterly), so the calendar split is correct here. For Part 2, `adjust_claims` will take a break date found by the scan instead of a year (see docs/PART2_PLAYBOOK.md).
+
 ---
 
 ## Open questions
 - **Resolved:** evaluation metric (Tweedie D², p = 1.5); excess on liability (host: every peril); 2025 weather available for all test addresses; prior_claims_5y almost unrelated to recorded claims, so history is built from the claims table.
-- **Motor level:** the leaderboard has favoured a higher motor level three times (excess, v6, v8). The BI joint estimate (+5.1%) was not adopted because it is not stable and its post-reform rise comes from open reserves; the weather year-effect hypothesis is the next check. The leaderboard is not used to decide the level.
+- **Motor level:** the leaderboard has favoured a higher motor level three times (excess, v6, v8). Not explained by the BI joint estimate (unstable; post-reform rise from open reserves), by weather acting as a year effect (RD), or by feature drift (E6: under 1%). Next: a model-free level reconciliation. The leaderboard is not used to decide the level.
 - All other open items are tracked in the Assumptions register below.
 
 ---
 
-## Assumptions register (status as of Oct 20, after E1–E5)
+## Assumptions register (status as of Oct 20, after E1–E6)
 
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
@@ -327,12 +365,12 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 | Motor severity trends (gross of excess) | glass 8%, own damage 4%, theft 3%, third-party property 8%, BI 0% | **open** (BI) | Joint estimate unstable: pre-reform 2.8–7.2% by cohort; post-reform 8.6% all claims vs 1.2% closed (reserves). Sensitivity +5.1% on motor |
 | Home severity trends | buildings: AD 3, EoW 8, fire 0, flood 7, storm 8, subsidence 7; contents: AD 3, EoW 3, flood 5, theft 4 (%) | judgement | Quarterly medians (Oct 18) |
 | BI reform factor | 0.83 on 2021–22, all claim sizes | judgement | Step 0.78–0.80 in every joint fit; by loss date and in closed claims (a cost change). Flat up to the 90th percentile; the 99th percentile unaffected |
-| Frequency level shift | own damage 0.93, third-party property 0.95 | verified | All claims, completeness-adjusted: 0.929 / 0.934 and 0.957 / 0.932 |
-| Glass frequency trend | none | **open** | Rising about 3% a year; small effect |
+| Frequency level shift | own damage 0.93, third-party property 0.95 | **open** | Raw steps confirmed (scan), but after all rating features the drops are largely mix (TPP fully), so the shifts may count mix twice. Removing them with a year term: A/E 0.993 / 0.996, D² +0.0002 (below threshold); 2025 motor +0.55% |
+| Glass frequency | no adjustment | **open** | Adjusted for features: +6% step in 2023; small share of cost |
 | Recoveries on open claims | not adjusted | judgement | Closed-claim recovery rates applied to open claims would lower the motor target by 0.34% (2024: 1.6%); recorded as a limitation |
 | Development of open claims (IBNER) | not modelled | judgement | One valuation snapshot; recorded as a limitation |
 | Motor theft severity | 3% a year | **open** | May be a 2023 step rather than a trend [AI 25] |
-| Buildings fire / contents theft frequency | no frequency trend | **open** | Rising about 8% / 3% a year without a weather explanation; test with out-of-time A/E |
+| Buildings fire / contents theft frequency | no frequency trend | fire: verified (mix); theft: **open** | Fire +25.5% raw → +6.1% after features. Contents theft +7.3% after features (step) |
 | Contents 2023 | no adjustment | **open** | Validation A/E 1.07 in 2023 |
 | Cap levels | motor 500k, buildings 300k, contents none | **open** | Plan: choose among none / 99.9th-percentile rule / lower by validation; not yet done |
 | Large losses, motor | Pareto loading 2.83 per weight, allocated by risk | verified | Range 1.2–3.8; GPD check optional |
@@ -346,7 +384,7 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 | Tweedie power for fitting | 1.5 | team decision | Motor p = 1.4: +0.0004 D² (below threshold) with better tails and balance |
 | Ridge strength and bands | motor α 0.5 / 10, buildings α 0.5 / 20, contents α 0.3 / 20 | verified | Grid on two validation years |
 | Balance factor k | from training years | verified | Level holds in validation years |
-| Claim history | same policy, 1 and 2 years, known by 1 Jan; unknown = missing | verified | v4 +0.0011; peril-level history and amounts rejected |
+| Claim history | same policy, 1 and 2 years, known by 1 Jan; unknown = missing | verified; **open** (2+ levels) | v4 +0.0011. No renewals under a new policy_id. 2+ past claims under-priced (A/E 1.25–3.26; ridge shrinkage). Unknown level partly carries the 2021 year effect |
 | Weather for 2025 | average 2021–24 weather per address | verified | Validation within 0.001 of actual weather; leaderboard +0.0026 |
 | written_premium | contents only, relative to the year's average | judgement | +0.0010 D² in contents; circular (inherits the insurer's relativities) |
 | customer_service_contacts | excluded | verified | Leakage: same-year correlation 12–72× next-year; test mean 0.40 vs train 0.67–0.75 |

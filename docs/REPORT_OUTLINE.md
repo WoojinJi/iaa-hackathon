@@ -97,6 +97,17 @@ a notebook or a test).
 
 ---
 
+## Figures (plan)
+| # | Figure | Shows | Section |
+|---|---|---|---|
+| 1 | Frequency and severity index by year, per line (6 small panels), with the adjustments marked; BI all vs closed claims | How assumptions were set and checked | 2 |
+| 2 | Leaderboard: expected range before each submission vs observed | Leaderboard used to check, not to decide (7 of 9) | 4 |
+| 3 | Roles flow (builder AI → reviewer AI → team decides) + AI log counts by type, AI errors split code vs assumptions | The thesis | 5 |
+| 4 | Decile A/E, GLM vs GBM, buildings | The measured trade-off | 3 |
+| — | Assumption ledger with status colours | Status at a glance (table) | 2 |
+| video | Pipeline diagram with guardrails; timeline; leakage example | — | — |
+| appendix | Data report (distributions by peril, tail plots, step scan), same code for Part 2 | — | repo |
+
 ## Page budget
 | Section | Pages |
 |---|---|
