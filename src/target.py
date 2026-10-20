@@ -148,7 +148,7 @@ ADJ = {
         "sev_trend": {"bodily_injury": 0.0, "glass_hail": 0.08, "own_damage": 0.04,
                       "theft": 0.03, "third_party_prop": 0.08},
         "reform": {"bodily_injury": 0.83},
-        "freq_shift": {"own_damage": 0.93, "third_party_prop": 0.95},
+        "freq_shift": {},   # removed Oct 20: the 2023 drops are mix (notebooks 17, 19); was own_damage 0.93, TPP 0.95
         "cap": 500_000,
     },
     "buildings": {   # notebook 04

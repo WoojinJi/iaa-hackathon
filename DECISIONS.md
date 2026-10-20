@@ -251,11 +251,12 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 | 10/19 | v5.csv | v4 + contents GLM/LightGBM 50/50 | 0.11996 |
 | 10/19 | v6.csv | Motor without home-type and discount features; Pareto loading 2.83 by risk; discount_applied removed in all lines | 0.11951 |
 | 10/19 | v7.csv | v6 + contents LightGBM alone (leaves 7, min_data 5000, lambda_l2 50), 3-seed average | 0.11973 |
-| 10/20 | **v8.csv** | v7 + average weather in all lines; contents relative premium | **0.12267** |
+| 10/20 | v8.csv | v7 + average weather in all lines; contents relative premium | 0.12267 |
 | 10/20 | v8a_experiment.csv | EXPERIMENT (attribution): v8 without the contents premium | 0.12237 |
+| 10/20 | **v9.csv** | v8 without the motor frequency shifts (motor +0.27%) | **0.12274** |
 
-- **Current adopted model: v8.** Motor GLM (10 bands) and buildings GLM (20 bands) with history and average weather; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium.
-- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237. 7 of 9 consistent. [AI 43, 50]
+- **Current adopted model: v9.** Motor GLM (10 bands, no frequency shifts) and buildings GLM (20 bands) with history and average weather; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium.
+- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237; v9 −0.0002 to +0.0005 vs +0.00007. 8 of 10 consistent. [AI 43, 50]
 - **v6 miss:** both submissions that lowered the motor level lost score in proportion (excess −4.3% → −0.0008; v6 −2.7% → −0.00045), pointing to the motor level being low on the public test. v6 kept: the loading rests on the fitted tail and the difference is within noise. Motor level is the first open issue.
 - **Experiments** are not candidates for the final selection; final entries are chosen by validation, not by public score.
 - **Context:** top 10 on the public leaderboard were 0.125–0.130 on Oct 19.
@@ -339,16 +340,40 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 ### Reform boundary
 - Steps are applied by loss year (before / after 1 January 2023). The scan places the BI and own damage breaks at 2023-01 (monthly) and 2023 Q1 (quarterly), so the calendar split is correct here. For Part 2, `adjust_claims` will take a break date found by the scan instead of a year (see docs/PART2_PLAYBOOK.md).
 
+### Level reconciliation and frequency shifts [notebook 19; rules L1, F1 fixed before results]
+- **L1 — level reconciliation** (2025 total vs the latest mature year's actual level, split into mix and level):
+
+| Line | Model vs 2023 actual level | Mix part (what the features say) | Level part |
+|---|---|---|---|
+| Motor | −4.0% | −3.25% | −0.8% |
+| Buildings | +5.0% | +2.35% | +2.6% |
+| Contents | +0.8% | +2.1% | −1.2% |
+
+  - **Motor:** the model believes 2025 risks are 3.25% safer than 2023 because of features that drift with time; E6 found those features overstate the improvement (4.2% vs 1.9% over three years), so part of the mix effect, perhaps about 1.5%, may be spurious. Consistent in direction with the leaderboard's preference for a higher motor level; size uncertain (the year term moved it by under 1%). **Check only; no change.**
+  - **Buildings:** above the 2023 level, partly because the dry 2024 (subsidence 69% complete) raises the training level. Recorded as a risk of over-prediction.
+- **F1 adopted — motor frequency shifts removed** (0.93 own damage, 0.95 TPP on 2021–22). The rule treats removal as a simplification: no worse than 0.0005 D², tails within 0.1, A/E no more than 0.01 further from 1.
+
+| Variant | D² change | A/E 2023 / 2024 | 2025 motor |
+|---|---|---|---|
+| Current (0.93 / 0.95) | — | 1.031 / 1.007 | — |
+| No TPP shift | +0.0001 | 1.014 / 1.005 | +0.17% |
+| No own damage shift | +0.0002 | 1.017 / 1.005 | +0.11% |
+| **No shifts (adopted)** | **+0.0002** | **1.000 / 1.003** | **+0.28%** |
+
+  - All three passed; the rule adopts the one removing most assumptions. The 2023 drops were mix: the Oct 17 check used two features only; with all rating features the conclusion reverses.
+  - **Changed in code:** `src/target.py` motor `freq_shift` = {} (mechanism kept for other markets); `tests/test_target.py`: the default test now expects no shift (1,124.864) and a separate test keeps the mechanism (1,046.12352).
+  - Yearly levels become 542 / 540 / 527 / 516 per weight (less even, because the mix is no longer hidden).
+
 ---
 
 ## Open questions
 - **Resolved:** evaluation metric (Tweedie D², p = 1.5); excess on liability (host: every peril); 2025 weather available for all test addresses; prior_claims_5y almost unrelated to recorded claims, so history is built from the claims table.
-- **Motor level:** the leaderboard has favoured a higher motor level three times (excess, v6, v8). Not explained by the BI joint estimate (unstable; post-reform rise from open reserves), by weather acting as a year effect (RD), or by feature drift (E6: under 1%). Next: a model-free level reconciliation. The leaderboard is not used to decide the level.
+- **Motor level:** the leaderboard has favoured a higher motor level (excess, v6, v8; v9 +0.27% motor, +0.00007). The reconciliation (L1) points to the mix effect: features say 2025 is 3.25% safer than 2023, part of which may be spurious drift. Not explained by the BI joint estimate, by weather as a year effect, or fixed by a year term (under 1%). Recorded with its range; the leaderboard is not used to decide the level.
 - All other open items are tracked in the Assumptions register below.
 
 ---
 
-## Assumptions register (status as of Oct 20, after E1–E6)
+## Assumptions register (status as of Oct 20, after E1–E6 and notebook 19)
 
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
@@ -365,7 +390,7 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 | Motor severity trends (gross of excess) | glass 8%, own damage 4%, theft 3%, third-party property 8%, BI 0% | **open** (BI) | Joint estimate unstable: pre-reform 2.8–7.2% by cohort; post-reform 8.6% all claims vs 1.2% closed (reserves). Sensitivity +5.1% on motor |
 | Home severity trends | buildings: AD 3, EoW 8, fire 0, flood 7, storm 8, subsidence 7; contents: AD 3, EoW 3, flood 5, theft 4 (%) | judgement | Quarterly medians (Oct 18) |
 | BI reform factor | 0.83 on 2021–22, all claim sizes | judgement | Step 0.78–0.80 in every joint fit; by loss date and in closed claims (a cost change). Flat up to the 90th percentile; the 99th percentile unaffected |
-| Frequency level shift | own damage 0.93, third-party property 0.95 | **open** | Raw steps confirmed (scan), but after all rating features the drops are largely mix (TPP fully), so the shifts may count mix twice. Removing them with a year term: A/E 0.993 / 0.996, D² +0.0002 (below threshold); 2025 motor +0.55% |
+| Frequency level shift | none (removed Oct 20; was own damage 0.93, TPP 0.95) | verified | The 2023 drops are mix: after all rating features they vanish. Removal passed the simplification rule: D² +0.0002, A/E 1.000 / 1.003 |
 | Glass frequency | no adjustment | **open** | Adjusted for features: +6% step in 2023; small share of cost |
 | Recoveries on open claims | not adjusted | judgement | Closed-claim recovery rates applied to open claims would lower the motor target by 0.34% (2024: 1.6%); recorded as a limitation |
 | Development of open claims (IBNER) | not modelled | judgement | One valuation snapshot; recorded as a limitation |

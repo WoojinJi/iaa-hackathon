@@ -185,9 +185,18 @@ def test_trend_applies_before_excess(tmp_path):
     assert adjusted_net(tmp_path, "own_damage", "2024-06-01", 1000) == pytest.approx(740)
 
 
-def test_frequency_shift_before_2023(tmp_path):
-    # own_damage 2022, no excess: 1,000 x 1.04^3 = 1,124.864; x 0.93 frequency shift = 1,046.12352
-    assert adjusted_net(tmp_path, "own_damage", "2022-06-01", 1000, vol=0, comp=0) == pytest.approx(1046.12352)
+def test_no_frequency_shift_by_default(tmp_path):
+    # own_damage 2022, no excess: 1,000 x 1.04^3 = 1,124.864; no frequency shift since Oct 20
+    assert adjusted_net(tmp_path, "own_damage", "2022-06-01", 1000, vol=0, comp=0) == pytest.approx(1124.864)
+
+
+def test_frequency_shift_mechanism(tmp_path):
+    # the mechanism is kept for other markets: 1,124.864 x 0.93 = 1,046.12352
+    pol, cl = write_data(tmp_path, [policy("R1", "P1", "2022-01-01", "2022-12-31", vol=0, comp=0)],
+                         [claim("C1", "P1", "own_damage", "2022-06-01", 1000)])
+    adj = dict(ADJ["motor"], freq_shift={"own_damage": 0.93})
+    m = adjust_claims(match_claims(cl, pol, "motor", cap=None), adj)
+    assert m["net_adj"].iloc[0] == pytest.approx(1046.12352)
 
 
 def test_model_weight_is_exposure_times_completeness(tmp_path):
