@@ -14,12 +14,15 @@ import pandas as pd
 DATA_START = pd.Timestamp("2021-01-01")
 
 
-def claim_history(target_pol, all_pol_same_line, claims, years=(1, 2)):
+def claim_history(target_pol, all_pol_same_line, claims, years=(1, 2), perils=None, prefix="pol_claims"):
     """Per row_id of target_pol: number of claims on the same policy_id with loss date in the
     `years` years before 1 Jan of the policy year and reported before that date.
 
     all_pol_same_line: train (and test) periods of the same line, used to tell whether the policy
     has an earlier period in the data.
+    perils: count only these perils (None = all). Columns are named f"{prefix}_{y}y".
+    Amounts are deliberately not used: they are valued at the data end (2024-12-30), so for
+    training rows they include development after the cutoff, which a test row cannot see.
     """
     t = target_pol[["row_id", "policy_id", "year"]].copy()
     t["cutoff"] = pd.to_datetime(t["year"].astype(int).astype(str) + "-01-01")
@@ -28,7 +31,8 @@ def claim_history(target_pol, all_pol_same_line, claims, years=(1, 2)):
     first_start = pd.to_datetime(starts["period_start"]).groupby(starts["policy_id"]).min()
     t["seen_before"] = t["policy_id"].map(first_start) < t["cutoff"]
 
-    c = claims[["policy_id", "loss_date", "report_date"]]
+    c = claims if perils is None else claims[claims["peril"].isin(perils)]
+    c = c[["policy_id", "loss_date", "report_date"]]
     j = t[["row_id", "policy_id", "cutoff"]].merge(c, on="policy_id", how="inner")
     j = j[j["report_date"] < j["cutoff"]]
 
@@ -38,5 +42,5 @@ def claim_history(target_pol, all_pol_same_line, claims, years=(1, 2)):
         w = j[j["loss_date"] >= j["cutoff"] - pd.DateOffset(years=y)]
         n = t["row_id"].map(w.groupby("row_id").size()).fillna(0.0)
         observable = (start >= DATA_START) & t["seen_before"]
-        out[f"pol_claims_{y}y"] = np.where(observable, n, np.nan)
+        out[f"{prefix}_{y}y"] = np.where(observable, n, np.nan)
     return out

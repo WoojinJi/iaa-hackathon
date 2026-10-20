@@ -18,15 +18,16 @@ def periods(*rows):
 
 
 def claims(*rows):
-    return pd.DataFrame([dict(policy_id=p, loss_date=pd.Timestamp(l), report_date=pd.Timestamp(r))
-                         for p, l, r in rows])
+    return pd.DataFrame([dict(policy_id=p, loss_date=pd.Timestamp(l), report_date=pd.Timestamp(r),
+                              peril=(x[0] if x else "own_damage"))
+                         for p, l, r, *x in rows])
 
 
 POL = periods(("R21", "P1", 2021), ("R22", "P1", 2022), ("R23", "P1", 2023), ("R24", "P1", 2024),
               ("N23", "P2", 2023))
 CL = claims(("P1", "2021-03-01", "2021-03-10"),   # 2021 loss, reported in 2021
             ("P1", "2022-12-20", "2023-01-05"),   # 2022 loss, reported after 1 Jan 2023
-            ("P1", "2023-06-01", "2023-06-02"))   # 2023 loss, reported in 2023
+            ("P1", "2023-06-01", "2023-06-02", "bodily_injury"))   # 2023 BI loss, reported in 2023
 
 
 def h():
@@ -58,3 +59,13 @@ def test_two_year_window_needs_two_observed_years():
 def test_policy_new_to_the_data_is_missing():
     # N23: P2 has no period before 2023 -> its history is unknown
     assert np.isnan(h().loc["N23", "pol_claims_1y"])
+
+
+def test_peril_filter():
+    # R24 (2024), 1-year window = 2023: the only known 2023 claim is bodily_injury.
+    # BI only -> 1; own_damage only -> 0. Column name follows the prefix.
+    bi = claim_history(POL, [POL], CL, years=(1,), perils=["bodily_injury"], prefix="hist_bi").set_index("row_id")
+    od = claim_history(POL, [POL], CL, years=(1,), perils=["own_damage"], prefix="hist_od").set_index("row_id")
+    assert bi.loc["R24", "hist_bi_1y"] == 1
+    assert od.loc["R24", "hist_od_1y"] == 0
+    assert np.isnan(bi.loc["R21", "hist_bi_1y"])
