@@ -404,6 +404,21 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 
 - **Motor (same procedure, same rule): not adopted.** D² +0.0001 (0.0531 → 0.0532); the final selection keeps no pair. Candidates were driver-experience pairs (NCB × years licensed, driver age × NCB, mileage × NCB, voluntary excess × NCB), whose effect on the last training year was small and not stable between folds. The motor GBM's own gain was small (about +0.002), consistent with main effects being enough for motor. (The script's "share of GBM gain recovered" line uses the buildings figure, +0.009; for motor it does not apply.)
 
+### Buildings blend with a regularised GBM (E8) [tools/exp_blend.py; rule of Oct 19, fixed before results]
+- **Question:** with the interactions in the GLM, can a blend with a regularised GBM (7 leaves, min 5,000 per leaf, L2 50, 3 seeds) gain further without the tail problem? Blend weight chosen on the last training year (0 / 0.25 / 0.5 / 0.75 / 1).
+
+| Buildings | v11 GLM + interactions | Blend (w = 0.75 in both folds) | GBM alone |
+|---|---|---|---|
+| D² 2023 / 2024 | 0.0643 / 0.0712 | 0.0723 / 0.0776 | 0.0716 / 0.0776 |
+| D² average | 0.0677 | 0.0749 (+0.0072) | 0.0746 (+0.0069) |
+| Lowest decile A/E | 1.147 / 0.901 | **0.735 / 0.720** | 0.618 / 0.709 |
+| Highest decile A/E | 1.017 / 1.083 | 1.118 / 1.145 | 1.112 / 1.126 |
+
+- **Not adopted:** the tail condition fails in both years (the safest 10% over-priced by about 27–28% with the blend, 10–15% off with the GLM).
+- **The trade-off, measured:** about +0.007 validation D² (perhaps +0.002–0.003 on the leaderboard, as with the Oct 19 blends) against charging the safest customers about a quarter too much. D² barely penalises this, because their expected cost is small. Kept for the Thursday team decision, with the numbers above; the default remains the rule.
+- The v11 GLM scores 0.0677 here vs 0.0672 in E7: here the final list of five pairs is used in both folds, in E7 each fold selected its own pairs (the procedure's estimate).
+- **Process error:** the first run in a notebook used versions of `src/config.py` and `src/pipeline.py` loaded earlier in the same kernel (before the interactions were added), so its "v11" was in fact the main-effects GLM. Detected because its numbers matched E7's main-effects row exactly; re-run in a fresh process. Experiments that import `src` are run from the terminal (or after a kernel restart).
+
 ### v11
 - v11 = v10 + the five buildings interactions (`src/config.py`). Motor and contents unchanged.
 - Expected leaderboard change written before submitting: +0.0005 to +0.0012. Observed: **+0.00042 (0.12307)**, just below the range, in the right direction. Kept on the validation evidence.
