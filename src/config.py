@@ -29,7 +29,7 @@ PART1 = {
     "valuation_date": VALUATION_DATE,          # last report date in the claims data
     "years": list(YEARS),                      # training policy years
     "adj": copy.deepcopy(ADJ),                 # trends, reform factors and dates, frequency shifts, caps
-    "completeness_method": "ref_year",         # v9; rule R1 adopted "lynden_bell" (change: v10)
+    "completeness_method": "lynden_bell",      # v10: rule R1 (notebook 15); v9 used "ref_year"
     "weather_mode": "average",                 # address average 2021-24 (E4)
     "drop": DROP,
     "model": {"motor": "glm", "buildings": "glm", "contents": "gbm"},
@@ -39,7 +39,7 @@ PART1 = {
     "gbm": {"contents": dict(GBM_BASE, num_leaves=7, min_data_in_leaf=5000, lambda_l2=50)},
     "gbm_seeds": [42, 43, 44],
     "premium_lines": ["contents"],             # relative premium as a feature (E1)
-    "premium_norm": "year",                    # divide by the policy year's average (v9); "month" to test
+    "premium_norm": "month",                   # v10: start-month average (mid-2021 rate step); v9 "year"
     # large-loss loading added to the predicted rate
     #   pareto: fitted tail above `threshold`; `fixed` (if set) is used instead of the refit, so a
     #           submission can be reproduced exactly; allocated in proportion to the predicted rate
