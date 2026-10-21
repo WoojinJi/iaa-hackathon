@@ -149,6 +149,7 @@ Add to **Lessons so far**:
 | 77 | A | v10 = Lynden-Bell completeness (rule R1) + relative premium by start month. | Expected leaderboard change written before submitting: −0.0002 to +0.0003. | 0.12265 (−0.00009): within the range; kept, since both changes were adopted by rules before the result. Config defaults now produce v10. |
 | 78 | A | AI proposed recovering the GBM's buildings gain inside the GLM: pairs ranked by a depth-2 GBM, each added as a coarse cross-classified factor, kept only if it helps on the last training year. | Nested out-of-time procedure (the validation year never used for selection); rule fixed before results; first run on synthetic data. | Adopted: D² +0.0025 (28% of the GBM's gain) with the tails slightly better, unlike the GBM. All five chosen pairs describe flood geography, which the team could explain in actuarial terms. |
 | 79 | E | AI expected v11 to add +0.0005 to +0.0012 on the leaderboard. | Submission. | +0.00042: just below the range, right direction. Kept on validation evidence; recorded as a narrow miss. |
+| 80 | A | Team ran the same interaction procedure on motor. | Same nested selection and rule as entry 78. | Not adopted (D² +0.0001; no pair kept in the final selection). Driver-experience pairs were unstable between folds; main effects are enough for motor. |
 
 ---
 

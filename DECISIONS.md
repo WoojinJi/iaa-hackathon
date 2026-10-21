@@ -402,6 +402,8 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 - **Adopted.** 28% of the GBM's gain, with the tails slightly closer to 1 (the GBM over-priced the safest decile by 15–30%).
 - **Final list** (same procedure on all years: ranked on 2021–23, kept on 2024): flood_zone × sum_insured, elevation × flood_zone, elevation × sum_insured, building_age × flood_zone, distance_to_river × flood_zone. All describe flood geography: flood risk is not additive (within a flood zone, height and distance from the river change the risk a lot), and larger sums insured lose more in a flood. Folds kept 3 pairs each; validation measures the procedure, not one fixed list.
 
+- **Motor (same procedure, same rule): not adopted.** D² +0.0001 (0.0531 → 0.0532); the final selection keeps no pair. Candidates were driver-experience pairs (NCB × years licensed, driver age × NCB, mileage × NCB, voluntary excess × NCB), whose effect on the last training year was small and not stable between folds. The motor GBM's own gain was small (about +0.002), consistent with main effects being enough for motor. (The script's "share of GBM gain recovered" line uses the buildings figure, +0.009; for motor it does not apply.)
+
 ### v11
 - v11 = v10 + the five buildings interactions (`src/config.py`). Motor and contents unchanged.
 - Expected leaderboard change written before submitting: +0.0005 to +0.0012. Observed: **+0.00042 (0.12307)**, just below the range, in the right direction. Kept on the validation evidence.
