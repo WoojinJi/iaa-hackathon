@@ -115,14 +115,43 @@ def cost_per_exposure(policies, target):
 
 
 # ------------------------------------------------------------- development
+def lag_cdf_lynden_bell(lag, window):
+    """Report-lag distribution under right truncation: a claim is seen only if lag <= its window
+    (valuation date - loss date). Lynden-Bell estimator:
+    F(t) = prod_{s > t} (1 - d(s) / R(s)),  R(s) = #{lag <= s <= window},  d(s) = #{lag = s}.
+    Returns a function of t (days). F is relative to the longest lag that can be observed."""
+    lag, window = np.asarray(lag, float), np.asarray(window, float)
+    s, d = np.unique(lag, return_counts=True)
+    R = np.searchsorted(np.sort(lag), s, side="right") - np.searchsorted(np.sort(window), s, side="left")
+    logq = np.log(np.clip(1 - d / R, 1e-12, 1))
+    tail = np.concatenate([np.cumsum(logq[::-1])[::-1][1:], [0.0]])   # sum over s_j > s_k
+
+    def F(t):
+        k = np.searchsorted(s, np.asarray(t, float), side="right") - 1
+        return np.where(k >= 0, np.exp(tail[np.clip(k, 0, None)]), 0.0)
+    return F
+
+
 def completeness(matched, peril, year, ref_year=2021,
-                 valuation_date=VALUATION_DATE, weight_col=None):
+                 valuation_date=VALUATION_DATE, weight_col=None, method="ref_year"):
     """Share of a loss year's claims expected to be reported by the valuation date.
 
-    Uses the report-lag distribution of `ref_year` losses (the most mature year),
+    method="ref_year": report-lag distribution of `ref_year` losses (the most mature year),
     assuming losses are spread evenly over the year. With weight_col (e.g. "net_cap")
     the share is amount-weighted instead of count-based.
+    method="lynden_bell": lag distribution from all loss years of the peril, each claim observed
+    only up to its own window, which corrects the right truncation of the ref_year pattern
+    (count-based; notebook 15: within 0.3 points of ref_year on Part 1 data).
     """
+    if method == "lynden_bell":
+        ref = matched[matched["peril"] == peril]
+        if ref.empty:
+            return 1.0
+        F = lag_cdf_lynden_bell(ref["report_lag"], (valuation_date - ref["loss_date"]).dt.days)
+        ages = (valuation_date - pd.date_range(f"{year}-01-01", f"{year}-12-31")).days.to_numpy()
+        return float(F(ages).mean())
+    if method != "ref_year":
+        raise ValueError(method)
     ref = matched[(matched["peril"] == peril) & (matched["loss_year"] == ref_year)]
     if ref.empty:
         # No reference claims for this peril: no basis for a delay pattern, assume complete.
@@ -175,7 +204,9 @@ def adjust_claims(matched, adj, target_year=TARGET_YEAR, reform_year=REFORM_YEAR
     the net is capped; the frequency shift then scales pre-reform claims of the affected perils.
     """
     c = matched.copy()
-    pre = c["loss_year"] < reform_year
+    # steps apply to losses before the break date (default 1 January of reform_year; a mid-year
+    # change in another market is split at its own date: adj["reform_date"])
+    pre = c["loss_date"] < pd.Timestamp(adj.get("reform_date", f"{reform_year}-01-01"))
     sev = (1 + c["peril"].map(adj["sev_trend"]).fillna(0.0)) ** (target_year - c["loss_year"])
     sev = sev * np.where(pre, c["peril"].map(adj["reform"]).fillna(1.0), 1.0)
     gross = c["incurred_to_date"] * sev
@@ -196,18 +227,20 @@ def adjust_motor_claims(matched, adj=MOTOR_ADJ, target_year=TARGET_YEAR, cap=Non
     return adjust_claims(matched, a, target_year)
 
 
-def year_completeness(adjusted, years=YEARS):
+def year_completeness(adjusted, years=YEARS, method="ref_year", valuation_date=VALUATION_DATE):
     """Line-level completeness by loss year: reported / ultimate, on adjusted amounts."""
     out = {}
     for y in years:
         rep = adjusted[adjusted["loss_year"] == y]
-        ult = sum(rep.loc[rep["peril"] == p, "net_adj"].sum() / completeness(adjusted, p, y)
+        ult = sum(rep.loc[rep["peril"] == p, "net_adj"].sum() / completeness(adjusted, p, y, valuation_date=valuation_date,
+                                                                    method=method)
                   for p in rep["peril"].unique())
         out[y] = rep["net_adj"].sum() / ult if ult > 0 else 1.0   # no claims that year: nothing to develop
     return pd.Series(out, name="completeness")
 
 
-def build_model_target(claims, policies, line="motor", adj=None, excess_on_liability=True):
+def build_model_target(claims, policies, line="motor", adj=None, excess_on_liability=True,
+                       completeness_method="ref_year", valuation_date=VALUATION_DATE, years=YEARS):
     """Modelling frame for one line: row_id, year, exposure_clean, target (2025 level), weight.
 
     weight = exposure_clean x completeness of the policy year, so immature years count
@@ -220,7 +253,7 @@ def build_model_target(claims, policies, line="motor", adj=None, excess_on_liabi
     adj = ADJ[line] if adj is None else adj
     mc = adjust_claims(match_claims(claims, policies, line, excess_on_liability, cap=None), adj)
     per_row = mc.groupby("row_id")["net_adj"].sum()
-    comp = year_completeness(mc)
+    comp = year_completeness(mc, years=years, method=completeness_method, valuation_date=valuation_date)
     df = policies[["row_id", "year", "exposure_clean"]].copy()
     df["target"] = df["row_id"].map(per_row).fillna(0.0)
     df["weight"] = df["exposure_clean"] * df["year"].map(comp)
