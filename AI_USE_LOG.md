@@ -139,6 +139,15 @@ Add to **Lessons so far**:
 - **Platform rules are checked before strategy** (entry 61). AI assumed a common Kaggle setting that did not apply.
 - **The evaluation metric can reward worse pricing** (entry 62); model choice also weighs the tails.
 
+## Oct 21 — Pipeline, checks, v10
+
+| # | Type | What happened | How it was checked | Outcome |
+|---|---|---|---|---|
+| 74 | A | AI moved the model from notebook cells into `src/pipeline.py` with a market configuration, the Pareto loading into `src/loading.py`, and the Day 1 checks into `src/checks.py`; `src/target.py` changes were supplied as a patch script for the team to run (the file has one owner). | First on synthetic data with the real schema (end to end), then on the real data by the team: the v9 submission rebuilt from code. | Exact reproduction (totals +0.000%, correlation 1.000000). One bug found on synthetic data (empty scan tables) and fixed before handover. 44 tests; CI on every push. |
+| 75 | A | The checks tool, run on Part 1 data, found a 50–60% step in premium per year in May–June 2021, followed by fewer renewals and more new business. | Controls in the same report: known steps and the known leaking field were all found. | Read as a mid-2021 rate increase; adverse selection after it recorded as a hypothesis. |
+| 76 | E | AI's relative premium (Oct 20) divided by the policy year's average, so the mid-2021 rate step made early-2021 policies look cheap: a price change read as risk. | Found by the team's checks tool (entry 75); corrected definition (start-month average) validated out of time under a rule fixed before the result. | Adopted (D² +0.0003, tails within limits). |
+| 77 | A | v10 = Lynden-Bell completeness (rule R1) + relative premium by start month. | Expected leaderboard change written before submitting: −0.0002 to +0.0003. | 0.12265 (−0.00009): within the range; kept, since both changes were adopted by rules before the result. Config defaults now produce v10. |
+
 ---
 
 ## Lessons so far

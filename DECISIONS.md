@@ -253,10 +253,11 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 | 10/19 | v7.csv | v6 + contents LightGBM alone (leaves 7, min_data 5000, lambda_l2 50), 3-seed average | 0.11973 |
 | 10/20 | v8.csv | v7 + average weather in all lines; contents relative premium | 0.12267 |
 | 10/20 | v8a_experiment.csv | EXPERIMENT (attribution): v8 without the contents premium | 0.12237 |
-| 10/20 | **v9.csv** | v8 without the motor frequency shifts (motor +0.27%) | **0.12274** |
+| 10/20 | v9.csv | v8 without the motor frequency shifts (motor +0.27%) | 0.12274 |
+| 10/21 | **v10.csv** | v9 + Lynden-Bell completeness + relative premium by start month; built by `src/pipeline.py` | **0.12265** |
 
-- **Current adopted model: v9.** Motor GLM (10 bands, no frequency shifts) and buildings GLM (20 bands) with history and average weather; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium.
-- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237; v9 −0.0002 to +0.0005 vs +0.00007. 8 of 10 consistent. [AI 43, 50]
+- **Current adopted model: v10** (`python -m src.pipeline`). Motor GLM (10 bands, no frequency shifts) and buildings GLM (20 bands) with history and average weather; Lynden-Bell completeness; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium by start month.
+- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237; v9 −0.0002 to +0.0005 vs +0.00007; v10 −0.0002 to +0.0003 vs −0.00009. 9 of 11 consistent. [AI 43, 50]
 - **v6 miss:** both submissions that lowered the motor level lost score in proportion (excess −4.3% → −0.0008; v6 −2.7% → −0.00045), pointing to the motor level being low on the public test. v6 kept: the loading rests on the fitted tail and the difference is within noise. Motor level is the first open issue.
 - **Experiments** are not candidates for the final selection; final entries are chosen by validation, not by public score.
 - **Context:** top 10 on the public leaderboard were 0.125–0.130 on Oct 19.
@@ -364,6 +365,28 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
   - **Changed in code:** `src/target.py` motor `freq_shift` = {} (mechanism kept for other markets); `tests/test_target.py`: the default test now expects no shift (1,124.864) and a separate test keeps the mechanism (1,046.12352).
   - Yearly levels become 542 / 540 / 527 / 516 per weight (less even, because the mix is no longer hidden).
 
+## 2026-10-21 — Pipeline, checks, v10
+
+### Reproducible pipeline [src/pipeline.py, src/config.py, src/loading.py]
+- **Decision:** the submission is built by one command (`python -m src.pipeline --out ...`) from a market configuration (`src/config.py`), instead of notebook cells. Pareto loading moved to `src/loading.py`; `src/target.py` gained a break date for steps (`adj["reform_date"]`, default 1 January 2023, identical to the previous rule), a Lynden-Bell completeness option, and valuation date / years as parameters (for Part 2).
+  - **Evidence:** v9 rebuilt from code: totals +0.000%, correlation 1.000000, no row differing by more than 1%. The Pareto refit gives alpha 2.05, 119 claims above 100k, loading 2.83, as on Oct 19.
+  - Tests: 44 (11 new: break date, Lynden-Bell on simulated lags, Pareto formula and fit, relative premium, step test, schema diff). CI runs them on every push. Exact package versions: `requirements-lock.txt`.
+
+### Day 1 checks as a tool [src/checks.py; report: docs/checks_part1_report.md]
+- One command produces the Day 1 report for any market: schema, data quality, completeness (both methods), reporting speed, quarterly step scan, policy scan with month-of-year effects, leakage suspects.
+- **Controls on Part 1 data:** the step scan reproduces notebook 16b (own damage frequency 2023 Q1, BI closed severity 2023 Q1, TPP decline); the leakage test flags customer_service_contacts in all three lines.
+- **New finding (policy scan):** average premium per year steps up by about 50–60% in May–June 2021 in all lines; the share of renewed policies falls at the same time (×0.90); from 2022 the share of new business rises (×1.12) and renewal counts fall (×0.82–0.86). Read together: a large rate increase in mid-2021, followed by more lapses and more new business. *Hypothesis:* lower-risk customers left after the increase (adverse selection), consistent with the feature-adjusted risk being lowest in 2021 and 5–10% higher afterwards (notebook 17). Not adjusted.
+
+### Relative premium by start month [rule fixed before results]
+- **Problem found by the checks:** the contents relative premium divided premium by the policy year's average, so within 2021 a policy starting before the mid-2021 rate step looked cheap and one after it looked dear, a price change read as risk.
+- **Decision:** divide by the average of the policy-start month. Rule: a correction of how a feature is built, adopted if average D² does not fall by more than 0.0005 and tails stay within 0.1.
+  - **Evidence (contents LightGBM, out of time):** D² 0.0847 / 0.0755 → 0.0843 / 0.0765 (average +0.0003); lowest decile A/E 0.988 / 0.983 → 0.999 / 0.958; highest 1.235 / 0.994 → 1.230 / 0.980. Adopted.
+
+### v10
+- v10 = v9 + Lynden-Bell completeness (rule R1, Oct 20) + relative premium by start month. Motor −0.09%, buildings +0.39% (subsidence 2024 completeness 0.919 → 0.913), contents −0.78%; total +0.033%; correlation 0.99988 with v9.
+- Expected leaderboard change written before submitting: −0.0002 to +0.0003. Observed: −0.00009 (0.12265). Kept: both changes were adopted by rules before the result, and the difference is a tenth of the noise range.
+- Config defaults now give v10 (`python -m src.pipeline` with no options).
+
 ---
 
 ## Open questions
@@ -386,7 +409,7 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 | Net cost | max(max(incurred − excess, 0) − recoveries, 0) | verified | Both deduction orders give the same total |
 | Exposure errors | recomputed from dates where inconsistent | verified | Total exposure changed by 25–28% |
 | Duplicate claims | 604 removed | verified | Concentrated in 2022 |
-| Completeness (IBNR) | report-lag pattern from all 2021–24 losses (Lynden-Bell), count-based | verified | Changes ≤ 0.3 points vs the 2021 pattern; reporting speed unchanged; amount-weighted differs by < 2% |
+| Completeness (IBNR) | report-lag pattern from all 2021–24 losses (Lynden-Bell), count-based; in use from v10 | verified | Changes ≤ 0.3 points vs the 2021 pattern; reporting speed unchanged; amount-weighted differs by < 2% |
 | Motor severity trends (gross of excess) | glass 8%, own damage 4%, theft 3%, third-party property 8%, BI 0% | **open** (BI) | Joint estimate unstable: pre-reform 2.8–7.2% by cohort; post-reform 8.6% all claims vs 1.2% closed (reserves). Sensitivity +5.1% on motor |
 | Home severity trends | buildings: AD 3, EoW 8, fire 0, flood 7, storm 8, subsidence 7; contents: AD 3, EoW 3, flood 5, theft 4 (%) | judgement | Quarterly medians (Oct 18) |
 | BI reform factor | 0.83 on 2021–22, all claim sizes | judgement | Step 0.78–0.80 in every joint fit; by loss date and in closed claims (a cost change). Flat up to the 90th percentile; the 99th percentile unaffected |
@@ -411,7 +434,7 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 | Balance factor k | from training years | verified | Level holds in validation years |
 | Claim history | same policy, 1 and 2 years, known by 1 Jan; unknown = missing | verified; **open** (2+ levels) | v4 +0.0011. No renewals under a new policy_id. 2+ past claims under-priced (A/E 1.25–3.26; ridge shrinkage). Unknown level partly carries the 2021 year effect |
 | Weather for 2025 | average 2021–24 weather per address | verified | Validation within 0.001 of actual weather; leaderboard +0.0026 |
-| written_premium | contents only, relative to the year's average | judgement | +0.0010 D² in contents; circular (inherits the insurer's relativities) |
+| written_premium | contents only, relative to the start month's average | judgement | +0.0010 D² in contents (+0.0003 more by month, Oct 21); circular (inherits the insurer's relativities) |
 | customer_service_contacts | excluded | verified | Leakage: same-year correlation 12–72× next-year; test mean 0.40 vs train 0.67–0.75 |
 | make_model | excluded | verified | +0.0001 D²; unstable between periods (0.15) |
 | Marketing and branch fields | excluded | open | Expected small |
