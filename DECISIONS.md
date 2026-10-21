@@ -254,10 +254,11 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 | 10/20 | v8.csv | v7 + average weather in all lines; contents relative premium | 0.12267 |
 | 10/20 | v8a_experiment.csv | EXPERIMENT (attribution): v8 without the contents premium | 0.12237 |
 | 10/20 | v9.csv | v8 without the motor frequency shifts (motor +0.27%) | 0.12274 |
-| 10/21 | **v10.csv** | v9 + Lynden-Bell completeness + relative premium by start month; built by `src/pipeline.py` | **0.12265** |
+| 10/21 | v10.csv | v9 + Lynden-Bell completeness + relative premium by start month; built by `src/pipeline.py` | 0.12265 |
+| 10/21 | **v11.csv** | v10 + five flood-geography interactions in the buildings GLM | **0.12307** |
 
-- **Current adopted model: v10** (`python -m src.pipeline`). Motor GLM (10 bands, no frequency shifts) and buildings GLM (20 bands) with history and average weather; Lynden-Bell completeness; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium by start month.
-- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237; v9 −0.0002 to +0.0005 vs +0.00007; v10 −0.0002 to +0.0003 vs −0.00009. 9 of 11 consistent. [AI 43, 50]
+- **Current adopted model: v11** (`python -m src.pipeline`). Motor GLM (10 bands, no frequency shifts) and buildings GLM (20 bands, five flood-geography interactions) with history and average weather; Lynden-Bell completeness; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium by start month.
+- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237; v9 −0.0002 to +0.0005 vs +0.00007; v10 −0.0002 to +0.0003 vs −0.00009; v11 +0.0005 to +0.0012 vs +0.00042 (just below). 9 of 12 within range, all 12 in the predicted direction or within noise. [AI 43, 50]
 - **v6 miss:** both submissions that lowered the motor level lost score in proportion (excess −4.3% → −0.0008; v6 −2.7% → −0.00045), pointing to the motor level being low on the public test. v6 kept: the loading rests on the fitted tail and the difference is within noise. Motor level is the first open issue.
 - **Experiments** are not candidates for the final selection; final entries are chosen by validation, not by public score.
 - **Context:** top 10 on the public leaderboard were 0.125–0.130 on Oct 19.
@@ -387,6 +388,24 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 - Expected leaderboard change written before submitting: −0.0002 to +0.0003. Observed: −0.00009 (0.12265). Kept: both changes were adopted by rules before the result, and the difference is a tenth of the noise range.
 - Config defaults now give v10 (`python -m src.pipeline` with no options).
 
+### Interactions in the buildings GLM (E7) [tools/exp_interactions.py, src/interactions.py; rule fixed before results]
+- **Purpose:** recover part of the GBM's buildings gain (about +0.009 D²) while keeping rating tables and avoiding the GBM's over-pricing of the safest decile.
+- **Procedure (per fold, never seeing the validation year):** rank feature pairs by a depth-2 GBM (split gain of parent–child pairs) on the training years before the last; add each of the top 6 pairs to the GLM as one coarse cross-classified factor (5 × 5 bands, ridge-shrunk); keep a pair if D² on the last training year rises by ≥ 0.0003. Rule: adopted if the average validation D² rises by ≥ 0.0005 and both tails stay within 0.1.
+
+| Buildings | Main effects | + interactions |
+|---|---|---|
+| D² 2023 / 2024 | 0.0630 / 0.0663 | 0.0647 / 0.0696 |
+| D² average | 0.0647 | **0.0672 (+0.0025)** |
+| Lowest decile A/E | 1.219 / 0.946 | 1.198 / 0.941 |
+| Highest decile A/E | 1.032 / 1.087 | 1.025 / 1.078 |
+
+- **Adopted.** 28% of the GBM's gain, with the tails slightly closer to 1 (the GBM over-priced the safest decile by 15–30%).
+- **Final list** (same procedure on all years: ranked on 2021–23, kept on 2024): flood_zone × sum_insured, elevation × flood_zone, elevation × sum_insured, building_age × flood_zone, distance_to_river × flood_zone. All describe flood geography: flood risk is not additive (within a flood zone, height and distance from the river change the risk a lot), and larger sums insured lose more in a flood. Folds kept 3 pairs each; validation measures the procedure, not one fixed list.
+
+### v11
+- v11 = v10 + the five buildings interactions (`src/config.py`). Motor and contents unchanged.
+- Expected leaderboard change written before submitting: +0.0005 to +0.0012. Observed: **+0.00042 (0.12307)**, just below the range, in the right direction. Kept on the validation evidence.
+
 ---
 
 ## Open questions
@@ -439,7 +458,7 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 | make_model | excluded | verified | +0.0001 D²; unstable between periods (0.15) |
 | Marketing and branch fields | excluded | open | Expected small |
 | Removed features | previous_insurer; occupation, region (home); discount_applied; home-type features in motor; duplicate tenure | verified | Stability checks and add/drop tests |
-| GBM by line | contents only (3 seeds) | team decision | Buildings +0.009 D² but over-prices the safest decile |
+| GBM by line | contents only (3 seeds) | team decision | Buildings GBM +0.009 D² but over-prices the safest decile; GLM + interactions recovers +0.0025 with good tails (E7) |
 
 ### Decision rules (fixed before results)
 | For | Rule |

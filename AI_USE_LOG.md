@@ -147,6 +147,8 @@ Add to **Lessons so far**:
 | 75 | A | The checks tool, run on Part 1 data, found a 50–60% step in premium per year in May–June 2021, followed by fewer renewals and more new business. | Controls in the same report: known steps and the known leaking field were all found. | Read as a mid-2021 rate increase; adverse selection after it recorded as a hypothesis. |
 | 76 | E | AI's relative premium (Oct 20) divided by the policy year's average, so the mid-2021 rate step made early-2021 policies look cheap: a price change read as risk. | Found by the team's checks tool (entry 75); corrected definition (start-month average) validated out of time under a rule fixed before the result. | Adopted (D² +0.0003, tails within limits). |
 | 77 | A | v10 = Lynden-Bell completeness (rule R1) + relative premium by start month. | Expected leaderboard change written before submitting: −0.0002 to +0.0003. | 0.12265 (−0.00009): within the range; kept, since both changes were adopted by rules before the result. Config defaults now produce v10. |
+| 78 | A | AI proposed recovering the GBM's buildings gain inside the GLM: pairs ranked by a depth-2 GBM, each added as a coarse cross-classified factor, kept only if it helps on the last training year. | Nested out-of-time procedure (the validation year never used for selection); rule fixed before results; first run on synthetic data. | Adopted: D² +0.0025 (28% of the GBM's gain) with the tails slightly better, unlike the GBM. All five chosen pairs describe flood geography, which the team could explain in actuarial terms. |
+| 79 | E | AI expected v11 to add +0.0005 to +0.0012 on the leaderboard. | Submission. | +0.00042: just below the range, right direction. Kept on validation evidence; recorded as a narrow miss. |
 
 ---
 

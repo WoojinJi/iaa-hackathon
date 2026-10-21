@@ -1,6 +1,6 @@
 """Market configuration: every number the pipeline uses, in one place.
 
-PART1 reproduces the adopted model (v9, DECISIONS.md Oct 20). For Part 2, copy PART1, change the values
+PART1 reproduces the adopted model (v11, DECISIONS.md Oct 21). For Part 2, copy PART1, change the values
 that the Day 1-2 checks re-estimate (docs/PART2_PLAYBOOK.md) and pass the new dict to the pipeline.
 """
 import copy
@@ -40,6 +40,11 @@ PART1 = {
     "gbm_seeds": [42, 43, 44],
     "premium_lines": ["contents"],             # relative premium as a feature (E1)
     "premium_norm": "month",                   # v10: start-month average (mid-2021 rate step); v9 "year"
+    # GLM interactions as coarse cross-classified factors (E7, Oct 21): selected by the procedure in
+    # tools/exp_interactions.py (ranked by a depth-2 GBM on 2021-23, kept if D2 on 2024 rises >= 0.0003)
+    "interactions": {"buildings": [("flood_zone", "sum_insured"), ("elevation_m", "flood_zone"),
+                                   ("elevation_m", "sum_insured"), ("building_age", "flood_zone"),
+                                   ("distance_to_river_km", "flood_zone")]},
     # large-loss loading added to the predicted rate
     #   pareto: fitted tail above `threshold`; `fixed` (if set) is used instead of the refit, so a
     #           submission can be reproduced exactly; allocated in proportion to the predicted rate

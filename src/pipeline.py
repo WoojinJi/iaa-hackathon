@@ -13,7 +13,7 @@ configuration. The steps reproduce the adopted model (v9), previously spread ove
 Usage (from the repository root):
   python -m src.pipeline --out submissions/v9_pipeline.csv --compare submissions/v9.csv
   python -m src.pipeline --validate                    # out-of-time folds, no submission
-  python -m src.pipeline --out submissions/v10.csv --completeness lynden_bell
+  python -m src.pipeline --out submissions/v11.csv --no-interactions   # main effects only (= v10)
 """
 import argparse
 import copy
@@ -29,6 +29,7 @@ from .evaluate import evaluate
 from .features import build_features
 from .glm import BandedTweedieGLM
 from .history import claim_history
+from .interactions import add_pairs, pair_name
 from .loading import pareto_loading
 from .target import adjust_claims, build_model_target, load_claims, load_policies, match_claims
 
@@ -90,6 +91,10 @@ def build_line(line, cfg, claims):
     feats = feature_order(line, p, cfg)
     if line in cfg["premium_lines"]:
         feats = feats + ["prem_rel"]
+    pairs = [tuple(x) for x in cfg.get("interactions", {}).get(line, [])]
+    if pairs:                                   # bands learned on the training table
+        tr, te = add_pairs(tr, [tr, te], pairs)
+        feats = feats + [pair_name(a, b) for a, b in pairs]
     missing = [c for c in feats if c not in tr.columns]
     assert not missing, f"features missing from the table: {missing}"
     return {"p": p, "pt": pt, "tr": tr, "te": te, "feats": feats, "comp": comp,
@@ -220,6 +225,7 @@ def main():
     ap.add_argument("--data", help="data directory (default: the config's)")
     ap.add_argument("--lines", nargs="+", help="lines to validate (default: all)")
     ap.add_argument("--premium-norm", choices=["year", "month"], help="relative premium: by year or start month")
+    ap.add_argument("--no-interactions", action="store_true", help="drop the GLM interactions from the config")
     a = ap.parse_args()
     cfg = copy.deepcopy(PART1)
     if a.data:
@@ -228,6 +234,8 @@ def main():
         cfg["completeness_method"] = a.completeness
     if a.premium_norm:
         cfg["premium_norm"] = a.premium_norm
+    if a.no_interactions:
+        cfg["interactions"] = {}
     if a.validate:
         print(validate(cfg, a.lines).round(4).to_string(index=False))
         return

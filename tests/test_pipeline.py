@@ -13,6 +13,7 @@ import pytest
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from src.checks import schema_diff, step_test  # noqa: E402
 from src.loading import expected_excess, pareto_alpha, pareto_loading  # noqa: E402
+from src.interactions import add_pairs, coarse  # noqa: E402
 from src.pipeline import hist_levels, rel_premium  # noqa: E402
 from src.target import ADJ, adjust_claims, completeness, lag_cdf_lynden_bell  # noqa: E402
 
@@ -130,3 +131,19 @@ def test_schema_diff_reports_changes():
     new = {"a.parquet": {"rows": 1, "columns": {"x": "float64", "z": "object"}}, "_status": ["closed", "open"]}
     d = schema_diff(new, ref)
     assert set(d.change) == {"type changed", "new column", "missing column", "values differ"}
+
+
+# ------------------------------------------------------------ interactions
+def test_coarse_bands_learned_on_training_data():
+    # training values 1..10 -> 5 quantile bands with interior edges 2.8, 4.6, 6.4, 8.2;
+    # a new value 100 falls in the top band, a missing value gets its own level
+    fit = pd.Series(np.arange(1, 11, dtype=float))
+    new = pd.Series([1.0, 5.0, 100.0, np.nan])
+    assert coarse(fit, new).tolist() == ["0", "2", "4", "na"]
+
+
+def test_add_pairs_cross_classifies():
+    tr = pd.DataFrame({"zone": ["A", "B", None], "x": np.arange(3.0)})
+    (out,) = add_pairs(tr, [tr], [("zone", "x")], bands=5)
+    # x has only 3 distinct values (<= 5 bands), so its values are used as levels
+    assert out["zone*x"].tolist() == ["A|0.0", "B|1.0", "na|2.0"]
