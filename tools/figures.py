@@ -60,13 +60,14 @@ def fig1(cfg):
         sa = (s.incurred_to_date * f).clip(upper=cap).groupby(s.loss_year).mean()
         ax[1, j].plot(years, sr / sr.iloc[0], "o-", color=GREY, label="as recorded")
         ax[1, j].plot(years, sa / sr.iloc[0], "o-", color=BLUE, label="at 2025 level")
-        ax[1, j].set_title(f"{line}: mean severity (2021 recorded = 1)")
+        ax[1, j].set_title(f"{line}: severity (2021 = 1)")
         for k in (0, 1):
             ax[k, j].set_xticks(years); ax[k, j].axhline(1, color="#ddd", lw=0.8, zorder=0)
     ax[0, 0].legend(frameon=False, fontsize=8); ax[1, 0].legend(frameon=False, fontsize=8)
     fig.suptitle("Bringing 2021–24 claims to the 2025 level", fontweight="bold")
-    fig.text(0.5, 0.005, "2024 severity includes case reserves on open claims. Frequency: all reported claims "
-             "(declined excluded), grossed up by peril completeness.", ha="center", fontsize=7.5, color="#555")
+    fig.text(0.5, 0.005, "Frequency: all reported claims (declined excluded), grossed up by peril completeness. Severity: mean "
+             "over all perils of the line, so 2024 motor is lower partly because late-reported large BI claims are "
+             "still missing; 2024 includes case reserves on open claims.", ha="center", fontsize=7, color="#555", wrap=True)
     fig.tight_layout(rect=(0, 0.03, 1, 0.96)); fig.savefig(OUT / "fig1_freq_sev.png", dpi=160); plt.close(fig)
 
     # 1b: BI reform step, equal maturity (reported within 180 days)
@@ -116,7 +117,7 @@ def fig2():
         tally[kind] += 1
         ax.plot(obs * 1000, y, "o", color={"inside": GREEN, "near": ORANGE, "outside": RED}[kind], ms=6, zorder=3)
     ax.axvspan(-1, 1, color="#f2f2f2", zorder=0)
-    ax.text(0.98, -0.9, "±0.001 noise range", ha="right", fontsize=7.5, color="#777")
+    ax.text(-0.95, len(SUBMISSIONS) - 0.6, "±0.001 noise range", ha="left", fontsize=7.5, color="#777")
     ax.axvline(0, color="#bbb", lw=0.8)
     ax.set_yticks(range(len(SUBMISSIONS))); ax.set_yticklabels([s[0] for s in SUBMISSIONS][::-1])
     ax.set_xlabel("change in public score (× 0.001)")
@@ -176,7 +177,7 @@ def fig3():
              label="in judgement (questions, data)")
     for i, v in enumerate([counts["A"], counts["H"], counts["E"]]):
         ax2.text(v + 0.5, i, f"{int(v)}", va="center", fontsize=8)
-    ax2.invert_yaxis(); ax2.legend(frameon=False, fontsize=7.5, loc="lower right")
+    ax2.invert_yaxis(); ax2.legend(frameon=False, fontsize=7.5, loc="upper center", bbox_to_anchor=(0.45, -0.12), ncol=2)
     ax2.set_title(f"AI_USE_LOG: {d.n.nunique()} entries (A/E rows count in both)", fontsize=9)
     fig.savefig(OUT / "fig3_ai_roles.png", dpi=160, bbox_inches="tight"); plt.close(fig)
     print(f"fig3: {({k: int(v) for k, v in counts.items()})}; AI errors {({k: int(v) for k, v in kinds.items()})} "
