@@ -134,6 +134,11 @@ def fig2():
 
 # ------------------------------------------------------------------ figure 3
 CODE_WORDS = r"code|script|test|notebook|label|column|file|kernel|function|parquet|csv|bug|crash"
+# AI errors classified by the team (Oct 22): "code" = implementation, caught by tests, checks or running it;
+# "judgement" = assumptions, rules, feature design, hypotheses and predictions, caught by questions and data.
+# Entries not listed fall back to the keyword rule above.
+ERROR_KIND = {**{n: "code" for n in [7, 26, 31, 37, 60, 69, 82]},
+              **{n: "judgement" for n in [25, 33, 36, 40, 41, 42, 44, 46, 47, 50, 53, 56, 57, 61, 68, 76, 79]}}
 
 
 def ai_log_counts(path=ROOT / "AI_USE_LOG.md"):
@@ -145,8 +150,8 @@ def ai_log_counts(path=ROOT / "AI_USE_LOG.md"):
         for t in cells[1].split("/"):
             recs.append({"n": int(cells[0]), "type": t, "text": " ".join(cells[2:])})
     d = pd.DataFrame(recs)
-    d["error_kind"] = np.where(d.type != "E", "",
-                               np.where(d.text.str.contains(CODE_WORDS, case=False), "code", "judgement"))
+    guess = np.where(d.text.str.contains(CODE_WORDS, case=False), "code", "judgement")
+    d["error_kind"] = np.where(d.type != "E", "", d.n.map(ERROR_KIND).fillna(pd.Series(guess, index=d.index)))
     return d
 
 
