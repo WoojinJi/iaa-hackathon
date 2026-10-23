@@ -666,6 +666,25 @@ differ by more than 1%).
   than Part 1). The range is wide on purpose; later submissions are judged against this one.
 
 ## Assumptions register (status as of Oct 22, after E1–E11)
+### Part 1 correction: relative premium (Oct 23) [notebook 22]
+- written_premium is the full annual premium; median written premium in Part 1 is flat by start month every year
+  (contents 2021: 115–118) and rises about 5–6% a year. There was no mid-2021 rate step: the policy scan divided
+  premium by exposure (December rows ×34). Contents validation D² is the same under all three definitions
+  (year 0.0802, month 0.0804, annual 0.0802; mean of 2023 and 2024), so v10's result stands but its stated
+  reason was wrong. [AI 100]
+
+### E12: buildings flood (Oct 23 evening) — not adopted [notebook 22]
+- Diagnosis: the under-priced highest decile (A/E 1.66) is flood: 610–670 of 790–870 actual cost per weight
+  in decile 10, almost none in deciles 1–4. One ridge strength cannot fit flood (concentrated) and the other
+  perils (alpha 2 fixed decile 10 but broke deciles 7–9).
+- Rule (fixed before running): Part 1 GLM-setting rule on 2024 (all perils): D² +0.0005 and lowest/highest
+  decile A/E no more than 0.1 further from 1 than the baseline; alphas by CV inside 2023.
+- Result: A baseline 0.0257 (low 0.66, top 1.66); B + Part 1 flood pairs 0.0411 (low 0.31); C flood GLM with
+  pairs + other-perils GLM 0.0631 (low 0.51, top 0.77); D flood GLM without pairs 0.0433 (low 0.53, top 0.80).
+  All fail the lowest-decile condition (C by 0.15). **Not adopted; p2_v1 stays.**
+- The gain forgone is large (C: D² +0.037 on buildings); the condition protects the safest customers from
+  over-pricing, the team's stated priority. Hypothesis to test as a new, pre-registered experiment: the flat
+  fire rate (96 for every policy) drives the low-decile over-prediction in every variant.
 
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
