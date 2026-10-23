@@ -1,7 +1,7 @@
 # Report outline (5 pages, covers Part 1 and Part 2)
 
-First draft Oct 20; revised Oct 22 (structure kept, black-box comparison and AI checks woven in). Final report
-is due at the end of Part 2.
+First draft Oct 20; revised Oct 22 (structure kept, black-box comparison and AI checks woven in; Part 1 results
+added the same night). Final report is due at the end of Part 2.
 
 **Thesis:** *AI writes the code; actuaries own the assumptions. A black-box comparison measures what that
 ownership is worth.* AI made the coding and the breadth of analysis fast, but it did not guarantee that the
@@ -26,6 +26,10 @@ a notebook, a tool or a test).
 **Written before the Part 2 data (Oct 22), to be checked in Part 2:** *the black box scores higher, but
 when it is wrong we cannot say why, and its errors fall on the safest customers.*
 
+**Part 1 result (Oct 22):** the prediction was half right. The black box did *not* score higher: the strongest
+stack we built tied v11 on the leaderboard (0.12296 vs 0.12307) and lost on the tails in every line; the one
+gain came from actuarial structure, frequency x severity GLMs for motor (v12, 0.12336, the final Part 1 entry).
+
 ---
 
 ## 0. Summary — ½ page (Krista drafts, Woojin checks numbers)
@@ -38,9 +42,9 @@ when it is wrong we cannot say why, and its errors fall on the safest customers.
      rebutted by our data.
   3. **Part 2 as a test:** every assumption carried a "would be wrong if" condition, and the black-box
      prediction was written down before the new data.
-- Results: Part 1 and Part 2 scores; black box vs ours in one line.
+- Results: Part 1 public 0.12336 (v12); the best black box tied v11 and lost on the tails. Part 2 scores: …
 - **Timeline strip:** Oct 16 data and target → Oct 19 first submissions, host answer on excess →
-  Oct 20 independent review, E5, mix → Oct 21 pipeline, v11 → Oct 22 E9 → Part 2 …
+  Oct 20 independent review, E5, mix → Oct 21 pipeline, v11 → Oct 22 black boxes E9, E10; v12 → Part 2 …
 
 ## 1. Data and target — ½ page (Woojin)
 - **Part 1:** target definition (excess on every peril: host answer); data issues found and fixed as one
@@ -82,35 +86,50 @@ when it is wrong we cannot say why, and its errors fall on the safest customers.
 | Flood risk is not additive (buildings) | Height and river distance matter within a flood zone | Five flood-geography pairs, +0.0025 D², tails better | Pairs not kept on Part 2 data | |
 
 ## 3. Model: transparent by default, with the cost measured — 1 page (Woojin) *[thesis point 1]*
-- **Part 1:** ridge-penalised Tweedie GLM with banded factors and a balance factor (credibility, level,
-  readable tables) in motor and buildings; buildings with five flood interactions found by a GBM and
-  moved into the GLM (+0.0025, 28% of the GBM's gain); contents a shallow, regularised LightGBM (passed
-  the tail rule, +0.0106).
+- **Part 1:** ridge-penalised GLMs with banded factors and a balance factor (credibility, level, readable
+  tables). Motor: frequency (Poisson) x severity (Gamma) GLMs (v12). Buildings: Tweedie GLM with five flood
+  interactions found by a GBM and moved into the GLM (+0.0025, 28% of the GBM's gain). Contents: a shallow,
+  regularised LightGBM (passed the tail rule, +0.0106).
 - **The measured trade-off:** the buildings blend (E8) gains +0.0072 D² but over-prices the safest 10% by
   about 27%; D² barely penalises this because their expected cost is small. Kept the GLM: over-priced safe
   customers leave.
-- **Black box max vs ours (E9):** same target and loading; LightGBM everywhere, high capacity, every
-  non-leaking feature. One table:
+- **Structure, not capacity:** a Tweedie GLM makes every factor move frequency and severity in the same
+  direction. In motor, claim history (frequency up to ×3, severity slightly lower), cover type and voluntary
+  excess pull them apart; splitting the two gained +0.0025 with both tails closer to 1. In buildings the main
+  factors (flood geography, sum insured) move both the same way, and the split failed the tails.
+- **Black boxes vs ours (E9, E10) and the structural gain (v12):** same target and loading throughout.
 
-| | Ours (v11) | Black box max |
-|---|---|---|
-| Validation D² by line | | |
-| Public / private score | 0.12307 / | / |
-| Safest and riskiest 10%, A/E | | |
-| Seed spread per row (stability) | 0 (GLM) / contents | |
-| Planted errors attributed (traceability) | 6 of 7 (model-free checks) | |
-| Part 2: can we say what changed? | rating factors by name | score only |
+| | v11 | **v12 (final)** | E10 stack (4 models + network) | E9 black box max |
+|---|---|---|---|---|
+| Public score | 0.12307 | **0.12336** | 0.12296 | 0.11602 |
+| Validation D² vs v11: motor / buildings / contents | — | +0.0025 / 0 / 0 | +0.0016 / −0.0005 / −0.0042 | −0.0068 / −0.0124 / −0.0261 |
+| Worst tail distance from 1 (buildings, contents) | 0.15, 0.23 | 0.15, 0.23 | 0.34, 0.42 | 0.64, 0.79 |
+| Seed spread per row | 0 (GLM) / 3.7% contents | same | one seed | 7.5–10% |
+| Can a miss be traced? | rating table | two tables: more claims or larger claims | no | no |
 
+- **Message:** capacity alone over-fitted (E9); a tuned stack tied but priced the extremes worse (E10); the gain
+  came from structure (v12). Be fair in the text: E10 is a reasonably tuned stack (one seed, no search), not an
+  exhaustive one; early stopping halted every model after few iterations, which suggests the data supports
+  limited complexity.
+- **Literature (check the full papers before citing):** CANN (Schelldorfer & Wüthrich, GLM + network
+  correction; our Oct 19 "GBM on top of the GLM" is the tree version); Holvoet, Antonio & Henckaerts
+  (frequency–severity benchmark of GLM, GBM, network and CANN, with surrogate GLMs as tariffs); Henckaerts et
+  al. (tree models in tariff plans). Double lift charts: CAS Monograph 5, section 7.2.2.
 - **AI did / we checked:** AI's tie-break rule pointed the wrong way (33); the 3% limit on k had no
-  evidence (36); the blend was retested and rejected under the unchanged rule (81).
-- **Part 2:** what the same model needed to change, and the E9 comparison repeated.
-- **Figure:** fig4 (buildings decile A/E: GLM + interactions vs blend vs GBM).
+  evidence (36); the blend was retested and rejected under the unchanged rule (81); AI carried v11's ridge
+  strength into the frequency and severity GLMs and flattened them, caught by a direction table that
+  contradicted a known raw result (83).
+- **Part 2:** what the same model needed to change, and the comparison repeated (benchmark → diagnose the gap
+  with a double lift chart and a surrogate GLM → move what is found into the GLM; at most two cycles).
+- **Figure:** fig4 (buildings decile A/E: GLM + interactions vs blend vs GBM); possibly a double lift chart
+  v12 vs stack.
 
 ## 4. Validation and guardrails — ¾ page (Woojin, Krista edits) *[Trust]*
 - Rules fixed before results (table: GBM +0.003 and tails; feature +0.0005; removal −0.0005; leakage
   excluded whatever its score); two out-of-time folds; settings chosen on the last training year only.
-- Leaderboard used only to check predictions written before each submission: of 12, 5 inside the range,
-  5 within 0.00025, 2 outside (v6 motor level; v8 weather, attributed with a second submission).
+- Leaderboard used only to check predictions written before each submission: of 15, 6 inside the range,
+  6 within 0.00025, 3 outside (v6 motor level; v8 weather, attributed with a second submission; E9, which the
+  validation would have flagged had it been run first).
 - Planted-error test (AI's diagnostic rule 3 of 7; model-free checks 6 of 7); leakage caught; tools tested
   on known answers first (the monthly step scan failed its control and was fixed); reproducibility (v9
   rebuilt exactly); one-command pipeline, 46 tests, CI.
@@ -120,8 +139,8 @@ when it is wrong we cannot say why, and its errors fall on the safest customers.
 ## 5. How we used AI — ¾ page (Krista drafts from AI_USE_LOG) *[AI 25%, Trust 20%]*
 - **Roles:** builder AI (code, tests, analyses, hypotheses) → reviewer AI (a second model in a new chat,
   reviews but does not design fixes) → the team (rules and every decision). Figure fig3.
-- **Counts:** 82 entries: A 32 (AI proposed, team verified), H 27 (team questioned), E 24 (AI errors:
-  17 judgement, 7 code). The AI was rarely wrong about code and often wrong about what numbers meant.
+- **Counts (to update at the end of Part 2):** 82 entries to Oct 21: A 32 (AI proposed, team verified), H 27
+  (team questioned), E 24 (AI errors: 17 judgement, 7 code); Oct 22 adds the ridge-scale error (83). The AI was rarely wrong about code and often wrong about what numbers meant.
 - **Six checking habits, one catch each:** "what was your criterion?" (22); test the AI's own rules (29);
   independent reviewer (58–59); check the source, not the AI (41, 61); domain questions the AI did not
   ask (64–65); numbers that look too familiar (82).
@@ -154,7 +173,7 @@ when it is wrong we cannot say why, and its errors fall on the safest customers.
 | 3 | fig3_ai_roles.png | Builder AI → reviewer AI → team; log entries by type | 5 |
 | 4 | fig4_tails.png | Buildings decile A/E: GLM + interactions vs blend vs GBM | 3 |
 | 5 | fig5_outliers.png | Perils with the longest tails, largest claims, caps | 2 or appendix |
-| — | E9 table | Black box max vs ours | 3 |
+| — | Black-box table (E9, E10, v11, v12) | Score, tails, stability, traceability | 3 |
 | — | Assumption ledger | Status at a glance (table) | 2 |
 
 ## Page budget
@@ -174,7 +193,7 @@ when it is wrong we cannot say why, and its errors fall on the safest customers.
 |---|---|---|---|
 | 1 | Thesis | 0:30 | Krista |
 | 2 | Adjustments and the assumption ledger | 1:30 | Woojin |
-| 3 | Model trade-off: ours vs the black box | 1:00 | Woojin |
+| 3 | Model: structure beat capacity (v12 vs the stack) | 1:00 | Woojin |
 | 4 | AI roles and one error in depth (the excess) | 1:00 | Krista |
 | 5 | What Part 2 changed | 1:00 | Woojin |
 Storyboard, script and recording tool to be decided.

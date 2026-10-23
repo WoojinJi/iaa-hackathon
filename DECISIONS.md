@@ -255,17 +255,20 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 | 10/20 | v8a_experiment.csv | EXPERIMENT (attribution): v8 without the contents premium | 0.12237 |
 | 10/20 | v9.csv | v8 without the motor frequency shifts (motor +0.27%) | 0.12274 |
 | 10/21 | v10.csv | v9 + Lynden-Bell completeness + relative premium by start month; built by `src/pipeline.py` | 0.12265 |
-| 10/21 | **v11.csv** | v10 + five flood-geography interactions in the buildings GLM | **0.12307** |
-E9 black box max: 0.11602 (−0.0071 vs v11), outside the expected range (−0.002 to +0.004). Hypotheses, not yet tested: over-fitting from high capacity (127 leaves, light L2) on a noisy target; features removed for instability put back; total level −2.1%. Next: out-of-time validation to see whether the folds would have flagged the drop. Experiment only.
-- **Current adopted model: v11** (`python -m src.pipeline`). Motor GLM (10 bands, no frequency shifts) and buildings GLM (20 bands, five flood-geography interactions) with history and average weather; Lynden-Bell completeness; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium by start month.
-- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237; v9 −0.0002 to +0.0005 vs +0.00007; v10 −0.0002 to +0.0003 vs −0.00009; v11 +0.0005 to +0.0012 vs +0.00042 (just below). Of 12: 5 inside the written range, 5 within 0.00025 of it (point estimates cannot be hit exactly), 2 outside (v6, v8); figure 2 (`tools/figures.py`). [AI 43, 50]
+| 10/21 | v11.csv | v10 + five flood-geography interactions in the buildings GLM | 0.12307 |
+| 10/22 | blackbox_experiment.csv | EXPERIMENT E9: LightGBM in every line, high capacity, all non-leaking features | 0.11602 |
+| 10/22 | stack_experiment.csv | EXPERIMENT E10: LightGBM + CatBoost + XGBoost + neural network stack | 0.12296 |
+| 10/22 | **v12_freqsev.csv** | v11 with motor frequency x severity GLMs (E11, rule passed) | **0.12336** |
+
+- **Current adopted model: v12** (final Part 1 submission, selected by hand; `python tools/exp_freqsev.py --out ...`). Motor: frequency (Poisson) x severity (Gamma) GLMs, ridge strength chosen per part on the last training year (E11, Oct 22). Previously v11 (`python -m src.pipeline`): motor GLM (10 bands, no frequency shifts) and buildings GLM (20 bands, five flood-geography interactions) with history and average weather; Lynden-Bell completeness; motor Pareto loading by risk; contents LightGBM with history, average weather and relative premium by start month.
+- **Validation vs leaderboard** (predicted before submitting vs observed): v3 +0.0005 vs +0.0007; blend v1 +0.002–0.003 vs +0.0032; v4 +0.001 vs +0.0011; blend v2 about 0.122 vs 0.12186; v5 +0.0005–0.001 vs +0.0009; v6 +0.0005–0.0015 vs −0.00045 (miss); v7 +0.0002–0.0005 vs +0.00022; v8 −0.0003 to +0.0005 vs +0.0029 (miss, upward; attributed with v8a); v8a 0.1222–0.1227 if weather vs 0.12237; v9 −0.0002 to +0.0005 vs +0.00007; v10 −0.0002 to +0.0003 vs −0.00009; v11 +0.0005 to +0.0012 vs +0.00042 (just below); E9 −0.002 to +0.004 vs −0.0071 (miss); E10 −0.003 to +0.001 vs −0.00011; v12 +0.0005 to +0.002 vs +0.00029 (just below). Of 15: 6 inside the written range, 6 within 0.00025 of it (point estimates cannot be hit exactly), 3 outside (v6, v8, E9); figure 2 (`tools/figures.py`). [AI 43, 50]
 - **v6 miss:** both submissions that lowered the motor level lost score in proportion (excess −4.3% → −0.0008; v6 −2.7% → −0.00045), pointing to the motor level being low on the public test. v6 kept: the loading rests on the fitted tail and the difference is within noise. Motor level is the first open issue.
 - **Experiments** are not candidates for the final selection; final entries are chosen by validation, not by public score.
 - **Context:** top 10 on the public leaderboard were 0.125–0.130 on Oct 19.
 
 ### Schedule
-- Part 1 closes Oct 23 (check the exact time on the Overview tab; the Rules tab shows placeholders). Final model fixed on Oct 22; Oct 23 for submission and checks only.
-- **One final submission only** (Rules 2.2.b), and it counts towards the overall result. It is **selected by hand** on Oct 23; otherwise Kaggle picks the best public score, which could be an experiment.
+- Part 1 closes Oct 23. The organisers announced that Week 2 opens on 23 October at 12:00 PM EDT on a new competition page; Rule 2.4.a says Part 2 opens when Part 1 closes, so Part 1 is taken to close at noon EDT. Final model fixed on Oct 22 (v12); Oct 23 for checks only.
+- **One final submission only** (Rules 2.2.b), and it counts towards the overall result. It is **selected by hand** (v12, selected Oct 22); otherwise Kaggle picks the best public score, which could be an experiment.
 - Pricing (40%) combines Part 1 and Part 2 private scores with the panel's view of modelling choices, adaptation, data quality and uncertainty (Rules 2.4.c). Final deliverables (report, video, repo) are due at the end of Part 2 and cover both parts. Winners must provide code that reproduces the submission (Rules 2.9).
 
 ## 2026-10-20 — Candidate features, weather, independent review, BI and completeness
@@ -423,39 +426,67 @@ E9 black box max: 0.11602 (−0.0071 vs v11), outside the expected range (−0.0
 - v11 = v10 + the five buildings interactions (`src/config.py`). Motor and contents unchanged.
 - Expected leaderboard change written before submitting: +0.0005 to +0.0012. Observed: **+0.00042 (0.12307)**, just below the range, in the right direction. Kept on the validation evidence.
 
----
-## 2026-10-22 — Black-box comparison (E9, E10), frequency x severity (E11)
+## 2026-10-22 — Black-box comparison (E9, E10), frequency x severity (E11), v12
 
-### Traceability tiers for a final submission [fixed before the E10 validation result]
+### Team decisions (briefing and meeting)
+- **Buildings blend (E8): not adopted.** Over-pricing the safest 10% by about 27% would drive those customers away; the score gain (+0.007 validation, perhaps +0.002–0.003 public) does not justify it.
+- **Motor level adjustment (E6 c1) and Tweedie p = 1.4: not adopted.** Both are below the thresholds; the leaderboard's preference for a higher motor level is within noise and a time term moves the motor prediction by under 1%.
+- **Prizes and scores (Rules 2.4.c, 2.4.e):** Pricing (40%) combines the Part 1 and Part 2 private scores, equally weighted, with the panel's assessment; Part 1 position alone does not determine prizes. Whether scores enter as raw values or ranks is not stated; we assume raw scores (Kaggle's generic rule 3.7.a speaks of ranking).
+
+### Traceability tiers for a final submission [fixed before the E10 validation result and before the E10 public score]
 - (1) a GLM, readable as rating tables; (2) a single regularised tree model whose drivers can be shown with feature importance and partial dependence, if it passes the score and tail rule (contents); (3) a combination of several models including a neural network: a measured benchmark only, whatever its score, because a validation miss cannot be traced to a rating factor or even to one model.
-- Written after the E10 public score was / was not seen: **[fill in honestly]**.
 
 ### E9 black box max [tools/exp_blackbox.py]
-- LightGBM in every line, high capacity (127 leaves, light L2), every non-leaking feature, relative premium in all lines; same target and loading as v11.
+- LightGBM in every line, high capacity (127 leaves, 200 per leaf, light L2), every non-leaking feature (features removed for instability put back), relative premium in all lines, no hand-built interactions; same target and loading as v11.
 - Expected before submitting: −0.002 to +0.004 vs v11. **Observed: 0.11602 (−0.0071), outside the range.** Total −2.1% vs v11, correlation 0.898.
-- Hypotheses, not yet tested: over-fitting from high capacity on a noisy target; features removed for instability put back; level −2.1%. Out-of-time validation running (results/e9_validate.txt).
+- **Out-of-time validation (run after submitting):** worse than v11 in every line and both years: D² motor −0.0068, buildings −0.0124, contents −0.0261. Tails collapse at both ends: safest 10% over-priced by 35–39% in buildings and contents (A/E 0.61–0.68); riskiest 10% under-priced by up to 79% (contents 2023 A/E 1.79). Seed spread 7.5–10% per row (contents GBM in v11: 3.7–3.9%).
+- The validation predicted the leaderboard loss: had it been run first, E9 would not have been submitted. **Lesson: run the validation before any experimental submission.** Over-fitting from capacity on a noisy target is the likely cause.
 
 ### E10 stacked black box [tools/exp_stack.py]
-- LightGBM + CatBoost + XGBoost + neural network; each tuned on the last training year, stack weights chosen there. Weights: CatBoost 0.55–0.70, LightGBM 0.15–0.30, network 0–0.15, XGBoost 0.
-- Holdout 2024 D² (train 2021–23, same as the v11 2024 fold): motor 0.0550, buildings 0.0722 (v11 0.0712), contents 0.0741 (v11 0.0765). Optimistic, since the weights were chosen on the same year.
-- Total −1.6% vs v11, correlation 0.950.
-- **Expected public change vs v11 (revised before submitting, after seeing the holdout D² and the comparison line): −0.003 to +0.001.** Holdout 2024 D² is about equal to v11 in buildings and below it in contents; the total is 1.6% below v11, and lower levels have cost score before.
-- Observed: **0.12296 (−0.00011 vs v11), inside the expected range.** The strongest black box we built scores the same as the transparent model, within noise. Experiment only; tier (3).
-
+- LightGBM + CatBoost + XGBoost + neural network (embeddings, two hidden layers, Tweedie loss); each tuned on the last training year, stack weights chosen there. Weights: CatBoost 0.55–0.70, LightGBM 0.15–0.30, network 0–0.15, XGBoost 0. A reasonably tuned stack (one seed, no hyper-parameter search), not an exhaustive one; early stopping halted every model after few iterations (trees 41–539, network 3 epochs).
+- First run hung at the network (PyTorch and LightGBM / XGBoost OpenMP in one process on macOS); fixed by one PyTorch thread and per-epoch logging.
+- Holdout 2024 D² (train 2021–23): motor 0.0550, buildings 0.0722 (v11 0.0712), contents 0.0741 (v11 0.0765). Total −1.6% vs v11, correlation 0.950.
+- **Expected public change vs v11 (revised before submitting, after seeing the holdout D² and the comparison line): −0.003 to +0.001.** Observed: **0.12296 (−0.00011), inside the range.**
+- **Out-of-time validation:** stack minus v11, average D²: motor +0.0016, buildings −0.0005, contents −0.0042. Worst tail distance from 1: motor 0.146 → 0.184, buildings 0.147 → 0.338, contents 0.229 → 0.418. Fails the Oct 19 GBM rule (+0.003, tails within 0.1) in every line, before the traceability tiers are even applied. In motor, v12's frequency x severity GLM (+0.0025 vs v11) beats the stack (+0.0016).
 
 ### E11 frequency x severity GLMs [tools/exp_freqsev.py]
-- Open since Oct 19 (AI 44): deprioritised by reasoning, never tested. Poisson frequency x Gamma severity, same target, features, ridge and loading as v11. A Tweedie GLM forces frequency and severity to move in the same direction with each feature; this tests whether relaxing that helps.
-- Rule of Oct 19 (+0.0005 D², tails within 0.1). Expected before the result: small gain in motor (NCB moves frequency and severity in opposite directions), about equal in buildings.
-- Result: **[fill in after --validate]**.
+- Open since Oct 19 (AI 44): deprioritised by reasoning, never tested. A Tweedie GLM ties frequency and severity to move in the same direction with every feature; this tests whether relaxing that helps. Frequency: claims with net cost > 0 per row (2025 level, capped), Poisson GLM, weight exposure x completeness. Severity: target / claim count, Gamma GLM, weight claim count. Same target, features, bands and loading as v11.
+- **First version carried v11's ridge strength (0.5, tuned on the Tweedie cost scale)** into both parts, where the deviance scale is far smaller: both were nearly flat (NCB frequency range 0.98–1.06). Caught by the direction table before any validation result [AI 83]. Fixed: each part's alpha chosen on the last training year from a fixed list (0.5, 0.1, 0.03, 0.01, 0.003, 0.001). Chosen: frequency 0.001 (0.003 once), severity 0.1 in the folds and 0.03 in the final fit. Frequency alpha sits at the lower end of the list: recorded, not changed.
+- **Directions (`--directions`):** factors pulling frequency and severity in opposite directions — motor: claim history (frequency up to ×3, severity slightly lower), cover type (third-party-only: fewer, larger claims), voluntary excess (small claims filtered out); buildings: building age, energy rating, voluntary excess. Flood geography and sum insured move both the same way. NCB moves both the same way here (all perils, averages by level, mixed with age and licence years), so the Oct 19 "NCB opposite" observation (own damage only) is not confirmed. Within customers, claim size on rows with 2+ claims vs 1: motor +1.1% (independence holds), buildings +4.3% (685 rows).
+- Rule of Oct 19 (+0.0005 D², tails within 0.1). Expected before the result: small gain in motor, about equal in buildings.
+
+| | Motor v11 | Motor freq x sev | Buildings v11 | Buildings freq x sev |
+|---|---|---|---|---|
+| D² 2023 / 2024 | 0.0527 / 0.0535 | 0.0551 / 0.0561 | 0.0643 / 0.0712 | 0.0673 / 0.0721 |
+| D² average | 0.0531 | **0.0556 (+0.0025)** | 0.0677 | 0.0697 (+0.0020) |
+| Safest 10% A/E | 0.854 / 0.960 | 0.923 / 1.003 | 1.147 / 0.901 | 0.864 / **0.665** |
+| Riskiest 10% A/E | 1.017 / 1.070 | 0.973 / 1.011 | 1.017 / 1.083 | **1.278** / 1.208 |
+
+- **Motor: adopted** (gain in both folds, both tails closer to 1). **Buildings: not adopted** (tails fail).
+- **Why motor only:** the rule is applied line by line, as for contents (GBM) on Oct 19. Motor: several core rating factors move frequency and severity in opposite directions, which a Tweedie GLM cannot represent, and claim size does not depend on claim count within customers. Buildings (*hypothesis*): the strongest factors move both the same way, so the Tweedie constraint costs little; splitting adds parameters on far fewer claims (about 23k vs 80k rows with a claim) and the severity model becomes unstable at the extremes.
+- **v12** = v11 with motor frequency x severity. Total +0.036% vs v11 (motor about +0.07%), correlation 0.9968; buildings and contents identical to v11. Expected public change: +0.0005 to +0.002. Observed: **0.12336 (+0.00029)**, just below the range, right direction. **Adopted as the final Part 1 submission** on the validation evidence.
+
+### What the comparison shows
+| Model | Public | Validation D² vs v11 (motor / buildings / contents) | Worst tail (buildings, contents) |
+|---|---|---|---|
+| E9 black box max | 0.11602 | −0.0068 / −0.0124 / −0.0261 | 0.64, 0.79 |
+| E10 stack | 0.12296 | +0.0016 / −0.0005 / −0.0042 | 0.34, 0.42 |
+| v11 | 0.12307 | — | 0.15, 0.23 |
+| **v12** | **0.12336** | +0.0025 / 0 / 0 | 0.15, 0.23 |
+
+- Capacity alone over-fitted (E9); a tuned stack tied v11 but priced the extremes worse (E10); the gain came from actuarial structure (v12). The prediction written before the experiments ("the black box scores higher…") was half right: the black boxes did not score higher here.
+- **Checking the validation folds is not free:** E8–E11 used the same two folds on one day. Further Part 1 experiments stopped here; new ideas go to Part 2 (docs/PART2_PLAYBOOK.md, Day 3).
+
+---
 
 ## Open questions
 - **Resolved:** evaluation metric (Tweedie D², p = 1.5); excess on liability (host: every peril); 2025 weather available for all test addresses; prior_claims_5y almost unrelated to recorded claims, so history is built from the claims table.
-- **Motor level:** the leaderboard has favoured a higher motor level (excess, v6, v8; v9 +0.27% motor, +0.00007). The reconciliation (L1) points to the mix effect: features say 2025 is 3.25% safer than 2023, part of which may be spurious drift. Not explained by the BI joint estimate, by weather as a year effect, or fixed by a year term (under 1%). Recorded with its range; the leaderboard is not used to decide the level.
+- **Motor level:** the leaderboard has favoured a higher motor level (excess, v6, v8; v9 +0.27% motor, +0.00007); E9 and E10, both 1.6–2.1% below v11 in total, lost or tied. The reconciliation (L1) points to the mix effect: features say 2025 is 3.25% safer than 2023, part of which may be spurious drift. Not explained by the BI joint estimate, by weather as a year effect, or fixed by a year term (under 1%). Recorded with its range; the leaderboard is not used to decide the level.
 - All other open items are tracked in the Assumptions register below.
 
 ---
 
-## Assumptions register (status as of Oct 20, after E1–E6 and notebook 19)
+## Assumptions register (status as of Oct 22, after E1–E11)
 
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
@@ -487,23 +518,28 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 ### Model and features
 | Assumption | Current | Status | Evidence / next step |
 |---|---|---|---|
-| Validation design | two out-of-time folds (2023 on 2021–22; 2024 on 2021–23) | verified | Predicted the leaderboard change 6 of 7 times |
-| Tweedie power for fitting | 1.5 | team decision | Motor p = 1.4: +0.0004 D² (below threshold) with better tails and balance |
+| Validation design | two out-of-time folds (2023 on 2021–22; 2024 on 2021–23) | verified | Of 15 submissions, 12 inside or within 0.00025 of the written range; it would have flagged E9 before submitting |
+| Tweedie power for fitting | 1.5 (buildings) | resolved | Motor p = 1.4 not adopted (+0.0004, below threshold); motor now frequency x severity (E11) |
+| Motor model structure | frequency (Poisson) x severity (Gamma) GLMs | verified | E11: D² +0.0025, both tails closer to 1, both folds; v12 0.12336 |
+| Frequency and severity independent within customers | yes (motor) | verified (motor); **open** (buildings) | Claim size 2+ vs 1 claims: motor +1.1%, buildings +4.3% (685 rows) |
 | Ridge strength and bands | motor α 0.5 / 10, buildings α 0.5 / 20, contents α 0.3 / 20 | verified | Grid on two validation years |
 | Balance factor k | from training years | verified | Level holds in validation years |
-| Claim history | same policy, 1 and 2 years, known by 1 Jan; unknown = missing | verified; **open** (2+ levels) | v4 +0.0011. No renewals under a new policy_id. 2+ past claims under-priced (A/E 1.25–3.26; ridge shrinkage). Unknown level partly carries the 2021 year effect |
+| Claim history | same policy, 1 and 2 years, known by 1 Jan; unknown = missing | verified; **open** (2+ levels) | v4 +0.0011. No renewals under a new policy_id. 2+ past claims under-priced in v11 (A/E 1.25–3.26; ridge shrinkage, and possibly the Tweedie same-direction constraint: frequency ×3 but severity lower). Re-check under v12 |
 | Weather for 2025 | average 2021–24 weather per address | verified | Validation within 0.001 of actual weather; leaderboard +0.0026 |
 | written_premium | contents only, relative to the start month's average | judgement | +0.0010 D² in contents (+0.0003 more by month, Oct 21); circular (inherits the insurer's relativities) |
 | customer_service_contacts | excluded | verified | Leakage: same-year correlation 12–72× next-year; test mean 0.40 vs train 0.67–0.75 |
 | make_model | excluded | verified | +0.0001 D²; unstable between periods (0.15) |
 | Marketing and branch fields | excluded | open | Expected small |
 | Removed features | previous_insurer; occupation, region (home); discount_applied; home-type features in motor; duplicate tenure | verified | Stability checks and add/drop tests |
-| GBM by line | contents only (3 seeds) | team decision | Buildings GBM +0.009 D² but over-prices the safest decile; GLM + interactions recovers +0.0025 with good tails (E7) |
+| GBM by line | contents only (3 seeds) | verified | Buildings GBM / blend over-price the safest decile (E8: 27%); team kept the GLM (Oct 22). Black boxes E9, E10 fail the rule in every line |
+| Traceability tiers | GLM; single regularised GBM if it passes; stacks as benchmarks only | rule (Oct 22) | Fixed before the E10 results |
 
 ### Decision rules (fixed before results)
 | For | Rule |
 |---|---|
 | GBM or blend | +0.003 average validation D² over the GLM; lowest and highest decile A/E no more than 0.1 further from 1 than the GLM's in each year |
+| Final submission | traceability tiers (Oct 22): a combination of models with a neural network is a benchmark only |
+| Experimental submission | run the out-of-time validation first (Oct 22, after E9) |
 | Adding a feature / changing a GLM setting | +0.0005 D² and the tail condition |
 | Removing a feature | removed unless D² falls by more than 0.0005 |
 | Target assumptions (trends, factors) | model-free evidence, A/E toward 1 in both validation years, yearly levels more even |
