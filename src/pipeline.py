@@ -24,13 +24,14 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-from .config import PART1
+from .clean import fix_sum_insured
+from .config import MARKETS, PART1
 from .evaluate import evaluate
 from .features import build_features
 from .glm import BandedTweedieGLM
 from .history import claim_history
 from .interactions import add_pairs, pair_name
-from .loading import pareto_loading
+from .loading import expected_excess, pareto_loading
 from .target import adjust_claims, build_model_target, load_claims, load_policies, match_claims
 
 HIST = ["hist_1y", "hist_2y"]
@@ -47,11 +48,12 @@ def hist_levels(n):
                      dtype="object").where(n.notna())
 
 
-def add_history(F, p_rows, p_all_same_line, claims):
-    h = claim_history(p_rows, p_all_same_line, claims)
+def add_history(F, p_rows, p_all_same_line, claims, data_start=None, cols=HIST):
+    h = claim_history(p_rows, p_all_same_line, claims,
+                      **({} if data_start is None else {"data_start": data_start}))
     h["hist_1y"] = hist_levels(h.pol_claims_1y)
     h["hist_2y"] = hist_levels(h.pol_claims_2y)
-    out = F.merge(h[["row_id"] + HIST], on="row_id", how="left", validate="one_to_one")
+    out = F.merge(h[["row_id"] + list(cols)], on="row_id", how="left", validate="one_to_one")
     assert len(out) == len(F)
     return out
 
@@ -59,29 +61,52 @@ def add_history(F, p_rows, p_all_same_line, claims):
 def rel_premium(d, by="year"):
     """Premium per exposure-year divided by the average of its group (exposure-weighted).
     by="year": policy year (v8, v9). by="month": policy-start month, so a rate change within a year
-    (the checks found a +50% step in premium per year from mid-2021) does not show up as risk."""
+    (the checks found a +50% step in premium per year from mid-2021) does not show up as risk.
+    by="annual" (Part 2): written_premium is the full annual premium whatever the row length (Oct 23),
+    so it is divided by the policy year's average premium, not by exposure."""
+    if by == "annual":
+        return d.written_premium / d.year.map(d.written_premium.groupby(d.year).mean())
     pp = d.written_premium / d.exposure_clean
     key = d.year if by == "year" else d.period_start.dt.to_period("M")
     avg = d.written_premium.groupby(key).sum() / d.exposure_clean.groupby(key).sum()
     return pp / key.map(avg)
 
 
+def developed_peril_rate(line, peril):
+    """Uncapped cost per exposure of one peril in the developed market (Part 1 data), 2021-24 at 2025 level."""
+    p1, c1 = load_policies(line, "train", PART1["data_dir"]), load_claims(PART1["data_dir"])
+    m1 = adjust_claims(match_claims(c1, p1, line, True, cap=None), PART1["adj"][line])
+    return float(m1.loc[m1.peril == peril, "net_adj_uncapped"].sum() / p1.exposure_clean.sum())
+
+
 def feature_order(line, p, cfg):
     """Feature columns in the order of the actual-weather feature table (as in the notebooks; LightGBM's
     feature sampling depends on column order). Built on a few rows only."""
     cols = list(build_features(line, "train", data_dir=cfg["data_dir"], policies=p.head(200)).columns)
-    return [c for c in cols if c != "row_id" and c not in cfg["drop"][line]] + HIST
+    return [c for c in cols if c != "row_id" and c not in cfg["drop"][line]] + list(cfg.get("hist", HIST))
 
 
 # --------------------------------------------------------------------- tables
 def build_line(line, cfg, claims):
     p, pt = load_policies(line, "train", cfg["data_dir"]), load_policies(line, "test", cfg["data_dir"])
+    if cfg.get("fix_sum_insured") and "sum_insured" in p:
+        p, pt, n = fix_sum_insured(p, pt)
+        log(f"{line}: sum_insured x1000 entries divided by 1000: train {n[0]}, test {n[1]}")
     mt, comp, observed_loading = build_model_target(claims, p, line, adj=cfg["adj"][line],
                                                     completeness_method=cfg["completeness_method"],
                                                     valuation_date=cfg["valuation_date"], years=cfg["years"])
+    sep_rate = 0.0
+    fs = cfg.get("peril_split", {}).get(line)
+    if fs:                                      # one peril priced separately (Part 2: buildings fire)
+        ms = adjust_claims(match_claims(claims, p, line, True, cap=None), cfg["adj"][line])
+        sep = ms[ms.peril == fs["peril"]].groupby("row_id").net_adj.sum()
+        mt = mt.assign(target_all=mt.target, target=mt.target - mt.row_id.map(sep).fillna(0.0))
+        sep_rate = developed_peril_rate(line, fs["peril"]) if fs["rate"] == "developed" else float(fs["rate"])
+        log(f"{line}: {fs['peril']} priced separately at {sep_rate:.2f} per exposure ({fs['rate']})")
     wm = cfg["weather_mode"]
-    F = add_history(build_features(line, "train", cfg["data_dir"], policies=p, weather_mode=wm), p, [p, pt], claims)
-    Ft = add_history(build_features(line, "test", cfg["data_dir"], policies=pt, weather_mode=wm), pt, [p, pt], claims)
+    hk = dict(data_start=cfg.get("data_start"), cols=cfg.get("hist", HIST))
+    F = add_history(build_features(line, "train", cfg["data_dir"], policies=p, weather_mode=wm), p, [p, pt], claims, **hk)
+    Ft = add_history(build_features(line, "test", cfg["data_dir"], policies=pt, weather_mode=wm), pt, [p, pt], claims, **hk)
     tr = mt.merge(F, on="row_id", how="left", validate="one_to_one") \
            .merge(p[["row_id", "written_premium", "period_start"]], on="row_id", how="left", validate="one_to_one")
     te = pt[["row_id", "exposure_clean", "written_premium", "period_start"]].assign(year=2025) \
@@ -98,7 +123,7 @@ def build_line(line, cfg, claims):
     missing = [c for c in feats if c not in tr.columns]
     assert not missing, f"features missing from the table: {missing}"
     return {"p": p, "pt": pt, "tr": tr, "te": te, "feats": feats, "comp": comp,
-            "observed_loading": observed_loading}
+            "observed_loading": observed_loading, "sep_rate": sep_rate}
 
 
 # ---------------------------------------------------------------------- models
@@ -151,6 +176,12 @@ def apply_loading(line, cfg, rate, tr, d, claims):
     if spec["method"] == "pareto":
         adj = cfg["adj"][line]
         mc = adjust_claims(match_claims(claims, d["p"], line, True, cap=None), adj)
+        if spec.get("alpha"):   # Part 2: tail shape borrowed from the developed market, frequency from this one
+            n = int((mc.net_adj_uncapped > spec["threshold"]).sum())
+            used = n / tr.weight.sum() * expected_excess(spec["threshold"], adj["cap"], spec["alpha"])
+            f = 1 + used / (tr.target.sum() / tr.weight.sum())
+            return rate * f, (f"Pareto, alpha {spec['alpha']} borrowed: {n} claims above {spec['threshold']:,}, "
+                              f"loading {used:.2f} -> factor {f:.4f}")
         fit = pareto_loading(mc.net_adj_uncapped, tr.weight.sum(), spec["threshold"], adj["cap"])
         used = spec.get("fixed") or fit["loading"]
         f = 1 + used / (tr.target.sum() / tr.weight.sum())
@@ -165,7 +196,9 @@ def apply_loading(line, cfg, rate, tr, d, claims):
 # --------------------------------------------------------------------- runs
 def run(cfg=PART1, out=None):
     claims = load_claims(cfg["data_dir"])
-    sample = pd.read_parquet(Path(cfg["data_dir"]) / "sample_submission.parquet")
+    sp = Path(cfg["data_dir"])
+    sample = (pd.read_parquet(sp / "sample_submission.parquet") if (sp / "sample_submission.parquet").exists()
+              else pd.read_csv(sp / "sample_submission.csv", dtype=str))
     id_col, val_col = sample.columns[:2]
     parts = []
     for line in cfg["lines"]:
@@ -173,6 +206,9 @@ def run(cfg=PART1, out=None):
         d = build_line(line, cfg, claims)
         rate, model_info = predict_rate(line, cfg, d["tr"], d["te"], d["feats"])
         rate, load_info = apply_loading(line, cfg, rate, d["tr"], d, claims)
+        if d.get("sep_rate"):
+            rate = rate + d["sep_rate"]
+            load_info += f"; + separate peril rate {d['sep_rate']:.2f}"
         expo = d["te"].exposure_clean.to_numpy()
         pred = np.maximum(rate * expo, 0)
         log(f"{line}: {model_info}; {load_info}; mean rate {np.average(rate, weights=expo):.2f}; "
@@ -190,17 +226,32 @@ def run(cfg=PART1, out=None):
 def validate(cfg=PART1, lines=None):
     """Out-of-time folds on the capped target (no loading), as in the notebooks."""
     claims = load_claims(cfg["data_dir"])
-    rows = []
+    rows, pooled = [], {}
     for line in lines or cfg["lines"]:
         d = build_line(line, cfg, claims)
         for vy, tys in cfg["folds"]:
             tr, va = d["tr"][d["tr"].year.isin(tys)], d["tr"][d["tr"].year == vy]
             rate, _ = predict_rate(line, cfg, tr, va, d["feats"])
-            r = evaluate(va.target, rate * va.weight.to_numpy(), va.weight, show=False)
+            pv = (rate + d.get("sep_rate", 0.0)) * va.weight.to_numpy()
+            if "target_all" in va:              # separately priced peril: evaluate on all perils
+                va = va.assign(target=va.target_all)
+            r = evaluate(va.target, pv, va.weight, show=False)
+            pooled.setdefault(vy, []).append(pd.DataFrame({"a": va.target.to_numpy(), "p": pv, "w": va.weight.to_numpy()}))
             lf = r["lift"]["A/E"]
-            rows.append({"line": line, "year": vy, "D2": r["D2"], "A/E": r["A/E"],
-                         "low": lf.iloc[0], "top": lf.iloc[-1]})
-            log(f"validate {line} {vy}: D2 {r['D2']:.4f}  A/E {r['A/E']:.3f}")
+            row = {"line": line, "year": vy, "D2": r["D2"], "A/E": r["A/E"], "low": lf.iloc[0], "top": lf.iloc[-1]}
+            if "new_business" in va:            # rule 2 (Oct 23): new business is 76% of the Part 2 test
+                nb = va.new_business.astype(bool).to_numpy()
+                act = va.target.to_numpy()
+                row["A/E new"] = act[nb].sum() / pv[nb].sum() if nb.any() else np.nan
+                row["A/E renewal"] = act[~nb].sum() / pv[~nb].sum() if (~nb).any() else np.nan
+            rows.append(row)
+            log(f"validate {line} {vy}: D2 {r['D2']:.4f}  A/E {r['A/E']:.3f}"
+                + (f"  new {row['A/E new']:.3f}  renewal {row['A/E renewal']:.3f}" if "A/E new" in row else ""))
+    for vy, parts in pooled.items():            # the leaderboard pools the lines
+        a = pd.concat(parts)
+        r = evaluate(a.a, a.p, a.w, show=False)
+        rows.append({"line": "ALL (pooled)", "year": vy, "D2": r["D2"], "A/E": r["A/E"]})
+        log(f"validate pooled {vy}: D2 {r['D2']:.4f}  A/E {r['A/E']:.3f}")
     return pd.DataFrame(rows)
 
 
@@ -218,6 +269,7 @@ def compare(a_path, b_path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--market", choices=sorted(MARKETS), default="part1", help="market configuration")
     ap.add_argument("--out", help="write the submission here")
     ap.add_argument("--compare", help="compare the new file with this submission")
     ap.add_argument("--validate", action="store_true", help="run the out-of-time folds instead")
@@ -227,7 +279,7 @@ def main():
     ap.add_argument("--premium-norm", choices=["year", "month"], help="relative premium: by year or start month")
     ap.add_argument("--no-interactions", action="store_true", help="drop the GLM interactions from the config")
     a = ap.parse_args()
-    cfg = copy.deepcopy(PART1)
+    cfg = copy.deepcopy(MARKETS[a.market])
     if a.data:
         cfg["data_dir"] = Path(a.data)
     if a.completeness:

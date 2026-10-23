@@ -471,6 +471,11 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 |---|---|---|---|
 | E9 black box max | 0.11602 | −0.0068 / −0.0124 / −0.0261 | 0.64, 0.79 |
 | E10 stack | 0.12296 | +0.0016 / −0.0005 / −0.0042 | 0.34, 0.42 |
+### E10b: why the stack did not beat v11 [tools/exp_stack.py --why; for understanding only, no selection]
+- 2 x 2 on the same folds: features (all non-leaking vs v11's set) x stack weights (chosen on the last training year vs equal). "All / chosen" reproduces the E10 validation exactly.
+- **Unstable features hurt (hypothesis 5: supported).** Moving to v11's features improves the stack in every line: D² vs v11, chosen weights: motor +0.0016 → +0.0022, buildings −0.0005 → +0.0054, contents −0.0042 → −0.0027. The Oct 19 stability drops were right for black boxes too.
+- **One-year stack weights did not over-fit (hypothesis 6: not supported).** Equal weights were no better than chosen weights in any line (motor v11 features: +0.0023 vs +0.0022).
+- With v11's features, the buildings stack gains +0.0054 but over-prices the safest 10% by about 40% (A/E 0.61 / 0.58): the same pattern as the E8 blend and the E11 buildings split. Fails the tails; tier 3. Motor: the improved stack (+0.0022) is still behind v12 (+0.0025). Contents: our single regularised GBM still leads.
 | v11 | 0.12307 | — | 0.15, 0.23 |
 | **v12** | **0.12336** | +0.0025 / 0 / 0 | 0.15, 0.23 |
 
@@ -485,6 +490,180 @@ Uncapped, de-duplicated, corrected exposure, no excess on liability (record of t
 - All other open items are tracked in the Assumptions register below.
 
 ---
+
+## 2026-10-23 — Part 2 Day 1: emerging-market data (checks before any model)
+
+Data: `data_part2/emerging` (Kaggle Part 2 page, downloaded file by file; bulk download returns 404).
+Tools: `python -m src.checks --out results/checks_part2 --data data_part2/emerging --reference
+results/checks_part1/schema.json`; follow-up cells in `notebooks/20_part2_day1.ipynb`. No model fitted.
+
+### What changed from the developed market
+- **Two training years (2023, 2024)**, valued at 31 Dec 2024. Train rows: motor 47,283, buildings 27,447,
+  contents 34,566; claims 7,183 / 1,059 / 1,016. **Test is about four times the 2024 exposure** (motor
+  79,007 vs 20,104): the broker portfolio taken on in 2025.
+- **76% of test rows are new business** (train 12–15%); 24% of test policies appear in train, so claim
+  history is observable for about a quarter of test rows (Part 1: 85%).
+- Columns: age bands instead of ages; no credit_band, annual_mileage, telematics; **gender added** (allowed
+  for pricing in this market, Dataset Description); construction_type in local codes (BRK/STN/WOD/MIX);
+  regions E01–E06. New tables: expenses, reference_policies.
+- Channel, region, payment method and cover type shares are unchanged between train and test.
+
+### Data quality
+- **Exposure:** 0.5% of train rows inconsistent with dates (same as Part 1); corrected by `exposure_clean`.
+  Test: none.
+- **Clean:** no duplicate claims; 0.3–0.5% of claims outside any period (excluded as in Part 1); no negative
+  amounts; repudiated 0–1.5% (excluded).
+- **Missing values (~12% in motor vehicle_age, engine_size_cc, overnight_parking; buildings
+  days_unoccupied, smoke_alarms; contents security_level, high_value_items).**
+  - **Finding:** missing completely at random. Missing indicators are uncorrelated across columns (|r| ≤
+    0.01); the share does not vary by year, channel or new business; claim frequency is the same with and
+    without the value (largest gap buildings days_unoccupied 0.046 vs 0.035 on 100 claims).
+  - **Decision:** keep a "missing" level in each banded factor; ridge shrinks it toward the average.
+- **sum_insured entry error (×1000).** Buildings 157 rows, contents 192 rows (about 0.2%, train and test).
+  - **Rule fixed before looking (the team asked whether these could be real values):** an entry error if
+    the same policy's other years differ by about ×1000 and the written premium is normal; a real value if
+    the premium is also large or the value is large every year.
+  - **Evidence:** policies seen in two or more years: max/min ratio median 1,030 (buildings) and 1,019
+    (contents), i.e. ×1000 with 2–3% annual indexation; only one year is affected. Written premium of the
+    large rows equals that of normal rows (median 250 vs 250; 124 vs 124). No buildings rows between 5× and
+    100× the median. Property type and bedrooms match normal rows.
+  - **Decision:** sum_insured above 100× the line's training median is divided by 1000 (train and test;
+    `src/clean.py`). Contents rows at 5–10× the median (17) are below the gap and kept as real.
+- **renewal_count is consistent, not an error.** Train mean 6.8 in a market written since 2023, but it is 0
+  for every new-business row and ≥ 1 for every renewal, rises by exactly 1 for every policy from 2023 to
+  2024, and 47% of customers have customer_since_year ≤ 2015 (tenure includes the relationship before the
+  insurer entered the market). Kept.
+- **written_premium is the annual premium, not the row's premium** (Part 1 as well). Median written premium
+  is flat by start month (motor 500–525) while median exposure falls from 1.00 to 0.04.
+  - **Decision (Part 2):** relative premium = written_premium ÷ that year's average, not divided by exposure
+    (`premium_norm="annual"`; not used in the baseline).
+  - **Part 1 consequence (to re-check):** Part 1 divided by exposure, which inflated short rows; the v10 gain
+    from normalising by start month (+0.0003) may have offset this artefact, and the mid-2021 "rate step"
+    from the policy scan needs re-checking on the corrected definition. The Day 1 policy-scan steps in
+    premium per year (motor ×1.9 at 2023-05, contents ×0.45) are this artefact.
+
+### Development
+- Completeness patterns match the developed market: bodily_injury 2024 0.55 (Lynden-Bell) / 0.57, subsidence
+  2024 0.75, all other perils ≥ 0.94. The first-year method differs for bodily_injury 2023 (0.973 vs 0.945)
+  because the reference year itself is immature. **Lynden-Bell kept.**
+
+### Leakage
+- customer_service_contacts: same-year correlation 10–82× next-year, test mean 0.40 vs 0.47–0.77 in 2024.
+  **Excluded**, as in Part 1. renewal_decision excluded (train only).
+
+### New business (the main Part 2 question)
+- **Train: new business has higher claim frequency.** Motor 0.260 / 0.209 vs 0.184 / 0.170 (2023 / 2024);
+  contents 0.042 / 0.048 vs 0.034 / 0.033; buildings 0.056 / 0.034 vs 0.045 / 0.045 (37–40 claims, no
+  consistent direction). By renewal_count, motor frequency is 0.229 at 0 and 0.17–0.185 from 1 onward: a
+  first-year effect, flat after.
+- **Age-standardised** (new business is younger: 17–34 is 55% vs 37%): motor 1.17, contents 1.26,
+  buildings 0.97.
+- **Developed market, 2021–2024 (not age-standardised):** motor 1.36–1.43, buildings 1.05–1.15, contents
+  1.11–1.21, stable every year.
+- **Are the 2025 new customers like the train new customers?** On every observed variable, yes: age band,
+  marketing segment, ncb_years, years_licensed, years_at_address, prior_claims_5y, licence_points, campaign
+  code, previous insurer, cover type, channel. The only difference is timing: test new business starts in
+  January (88–91%; the transfer date), train new business starts across the year (7–8% in January;
+  exposure 0.47 vs 0.88).
+- **Why it matters:** with 76% of test rows new business, a new-business relativity of 1.17 vs 1.00 moves
+  the test level by about 13%.
+
+### Other decisions
+- **gender:** used (allowed for pricing in this market, Dataset Description).
+- **BI reform factor 0.83:** not applied. It is a developed-market legal change; the emerging data start in
+  2023 and show no step to test.
+- **Weather:** address average of 2023–24 (Part 1 E4 method). `weather.parquet` includes 2025 (the Dataset
+  Description lists 2023–24 only); the average is kept for the Part 1 reason: next year's weather is unknown
+  when pricing.
+
+### Rules agreed before any model result (team, Oct 23)
+1. **New business:** a GLM factor estimated on emerging data. If it differs from the developed market's
+   relativity (same method) by more than two standard errors, use a credibility-weighted value.
+2. **Validation:** one out-of-time fold (fit 2023, validate 2024). Report overall D² and, separately, A/E for
+   2024 new business (motor 382 claims, about ±5%; a direction check).
+3. **Borrowed from the developed market:** severity trends (two years cannot estimate them), the Pareto tail
+   shape, and relativities for small lines as a credibility complement. Each borrowed item carries a "would
+   be wrong if" line in the register.
+4. **GBM / blend:** Part 1 rule unchanged (+0.003 D²; lowest and highest decile A/E no more than 0.1 further
+   from 1 than the GLM's). Its Part 1 cost (about 0.002 on private) is stated in the report.
+
+## 2026-10-23 (afternoon) — Part 2 baseline, ridge strength, buildings fire [notebook 21_part2_baseline]
+
+Code: `tools/patch_part2_oct24.py` (Part 2 configuration, `--market part2`) and `tools/patch_part2_oct23b.py`
+(decisions below). Part 1 reproduced exactly after both patches (v11 vs v11_check: +0.000%, 0.00% of rows
+differ by more than 1%).
+
+### Baseline with Part 1 settings failed
+- Part 1 structure and ridge strength (alpha 0.5 / 0.5 / 0.3): validation D² −0.0003 (motor), −0.0581
+  (buildings), −0.0471 (contents), with an inverted lift (lowest decile A/E 1.7–2.9, highest 0.14–0.56).
+- **Cause:** sklearn applies the penalty to the mean deviance, so the same alpha shrinks a small book no more
+  than a large one; Part 2 trains on one year of a much smaller book. [AI 97]
+
+### Ridge strength chosen by cross-validation inside the training year
+- **Rule (fixed before running):** alpha from [0.5, 2, 10, 50, 200, 1000] by 5-fold cross-validation inside
+  2023, grouped by policy; 2024 is the validation, not the basis of the choice.
+- **Result:** motor 10 (CV D² 0.0177; 2024 D² 0.0177, tails 0.75 / 0.98); contents 2 (CV 0.0394; 2024 0.0316,
+  tails 1.04 / 0.92). The CV choice was also the best alpha on 2024 in both lines.
+- Buildings: no alpha gave a positive 2024 D²; overall A/E 0.57–0.60 at every alpha (next section).
+
+### Buildings: 2023 fire cluster; fire priced separately
+- **Finding:** 2025-level cost per weight 523.6 (2023) vs 313.3 (2024). Fire explains about 90% of the gap
+  (277 vs 92 per weight): 49 vs 21 claims, frequency 4.3 vs 1.7 per 1,000; 9 of the 15 largest buildings
+  claims are 2023 fires. Lowering the cap does not close the gap (2023/2024 ratio 1.49 at a 100k cap):
+  more claims, not larger ones. Fire severity is unrelated to sum insured (rank correlation −0.003; median
+  claim 14% of sum insured).
+- **Developed market fire is stable:** 1.7–2.1 claims per 1,000 and 90–104 per exposure in 2021–24.
+  Emerging 2024 (1.7, 92) matches it; at the developed frequency 2023 would expect about 22 fires, not 49
+  (about 5.9 standard deviations).
+- **Where (depth-3 Poisson tree on 2023 fires, checked on 2024; the team asked for it):** two leaves defined
+  by address-average weather (low hail days; low wind or low elevation), i.e. location, held 34 of 49 2023
+  fires (11.5 and 8.0 per 1,000) but were normal in 2024 (1.4 and 2.5). A regional cluster in 2023, not a
+  stable risk factor. [AI 98]
+- **Consequence:** a single GLM learns the cluster as relativities (e.g. low-hail areas = high risk), which is
+  why the buildings lift was inverted.
+- **Decision:** buildings = GLM on all perils except fire (alpha 10 by the same CV rule) + fire at one rate per
+  exposure: the **developed market's 2021–24 average at 2025 level, uncapped (96.04)**. The buildings
+  large-loss loading is switched off (the fire rate is uncapped; no other buildings claim exceeds the cap).
+  - Options considered before choosing: emerging two-year average (184 per weight, treats the 2023 cluster
+    as a yearly event); developed average (chosen: stable over four years and equal to emerging 2024); a
+    midpoint (139, no basis for the event weight). The 2024 validation cannot choose between them (it
+    favours whichever level equals 2024 fire), so it was read as a sensitivity only.
+  - **Uncertainty (register):** if regional fire clusters recur in this market, buildings is under-priced.
+    The 2023 excess over the developed rate is about 180 per exposure in that year.
+- **Validation (all perils):** D² −0.0017 (single GLM) → 0.0257 (split).
+
+### Fewer features: tested, rejected by the pre-set rule
+- **Concern (team):** 43–46 features per line on two years of a small book make the GLM hard to explain,
+  close to a black box. [AI 99]
+- **Rule (fixed before running):** Part 1 stability test: drop a feature if the rank correlation of its
+  one-way claim frequency relativities between 2023 and 2024 is below 0.3 (levels with ≥ 20 claims each
+  year; buildings without fire). Exceptions by judgement: hist_1y kept (not testable: 2023 has no observable
+  history; strong in Part 1); motor basement and listed_building dropped (no plausible link). Removal adopted
+  if the cross-validated D² inside 2023 falls by no more than 0.0005.
+- **Result:** stable features 29 of 43 (motor), 25 of 44 (buildings), 26 of 46 (contents). CV D² full →
+  reduced: motor 0.0177 → 0.0156, buildings 0.0034 → −0.0027, contents 0.0394 → 0.0099. **All three fail;
+  full feature sets kept.** With a few hundred to a few thousand claims a year, a five-level rank
+  correlation between two years is too noisy and removed useful features (e.g. contents sum_insured,
+  security_level, tenure).
+- Transparency is kept by the model form: one rating table per feature, ridge shrinking thin levels toward
+  the average, and errors that can be traced (the fire cluster was found and removed).
+
+### Pipeline validation (2024, `python -m src.pipeline --market part2 --validate`)
+| Line | D² | A/E | Lowest decile | Highest decile | New business A/E | Renewal A/E |
+|---|---|---|---|---|---|---|
+| Motor | 0.0177 | 1.051 | 0.749 | 0.976 | 0.890 | 1.073 |
+| Buildings (all perils) | 0.0257 | 0.910 | 0.662 | 1.660 | 0.596 | 0.947 |
+| Contents | 0.0316 | 0.940 | 1.036 | 0.920 | 1.381 | 0.897 |
+| **All lines pooled** | **0.0806** | **0.991** | | | | |
+- Open for v2: new-business relativity against the developed market (rule 1): buildings over-prices new
+  business (0.60), contents under-prices it (1.38); buildings highest decile under-priced (1.66).
+
+### Submission p2_v1 (Part 2 baseline)
+- `python -m src.pipeline --market part2 --out submissions/p2_v1.csv`
+- **Expected public score, written before submitting: 0.06–0.10 (centre about 0.08).** Basis: pooled 2024
+  validation D² 0.0806. Up: the final model trains on two years. Down: 76% new business with an uncertain
+  relativity; history for 24% of test rows; the fire assumption; a smaller test (more public-score noise
+  than Part 1). The range is wide on purpose; later submissions are judged against this one.
 
 ## Assumptions register (status as of Oct 22, after E1–E11)
 

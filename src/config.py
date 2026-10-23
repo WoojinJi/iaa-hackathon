@@ -5,6 +5,8 @@ that the Day 1-2 checks re-estimate (docs/PART2_PLAYBOOK.md) and pass the new di
 """
 import copy
 
+import pandas as pd
+
 from .target import ADJ, DATA_DIR, LINES, VALUATION_DATE, YEARS
 
 # Features removed from every model, with the reason (DECISIONS.md Oct 19).
@@ -54,3 +56,38 @@ PART1 = {
                 "contents": {"method": "none"}},
     "folds": [(2023, [2021, 2022]), (2024, [2021, 2022, 2023])],
 }
+
+
+# ------------------------------------------------------------------ Part 2 (emerging market)
+# Day 1 checks and team rules: DECISIONS.md Oct 23. Baseline = Part 1 structure with what the emerging data
+# require; anything else is an experiment judged by the Part 1 rules.
+PART2 = copy.deepcopy(PART1)
+PART2.update({
+    "name": "part2",
+    "data_dir": DATA_DIR.parent / "data_part2" / "emerging",
+    "years": [2023, 2024],
+    "data_start": pd.Timestamp("2023-01-01"),  # history windows before this are not observable
+    "hist": ["hist_1y"],                       # a 2-year window is never observable in training (2023 start)
+    "fix_sum_insured": True,                   # x1000 entry error (Oct 23)
+    "model": {"motor": "glm", "buildings": "glm", "contents": "glm"},   # rule 4: a GBM must pass the Part 1 rule here
+    "premium_lines": [],                       # relative premium: an experiment in Part 2 (+0.0005 rule)
+    "premium_norm": "annual",                  # written_premium is the full annual premium (Oct 23)
+    "interactions": {},                        # Part 1 pairs were selected on developed data; re-select before use
+    "loading": {"motor": {"method": "pareto", "threshold": 100_000, "alpha": 2.05},   # tail shape borrowed (rule 3)
+                "buildings": {"method": "observed"},
+                "contents": {"method": "none"}},
+    "folds": [(2024, [2023])],                 # one out-of-time fold (rule 2)
+})
+PART2["adj"]["motor"]["reform"] = {}           # BI reform 0.83 is a developed-market change (Oct 23)
+for _line in PART2["drop"]:                    # occupation is free text in the emerging market
+    if "occupation" not in PART2["drop"][_line]:
+        PART2["drop"][_line] = PART2["drop"][_line] + ["occupation"]
+
+# Oct 23 afternoon (notebook 21_part2_baseline): ridge by CV inside the training year; buildings fire separate
+PART2["glm"]["motor"]["alpha"] = 10
+PART2["glm"]["buildings"]["alpha"] = 10
+PART2["glm"]["contents"]["alpha"] = 2
+PART2["peril_split"] = {"buildings": {"peril": "fire", "rate": "developed"}}   # or a number per exposure
+PART2["loading"]["buildings"] = {"method": "none"}                              # fire rate is uncapped
+
+MARKETS = {"part1": PART1, "part2": PART2}

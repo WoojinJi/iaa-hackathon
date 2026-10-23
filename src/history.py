@@ -14,7 +14,8 @@ import pandas as pd
 DATA_START = pd.Timestamp("2021-01-01")
 
 
-def claim_history(target_pol, all_pol_same_line, claims, years=(1, 2), perils=None, prefix="pol_claims"):
+def claim_history(target_pol, all_pol_same_line, claims, years=(1, 2), perils=None, prefix="pol_claims",
+                  data_start=DATA_START):
     """Per row_id of target_pol: number of claims on the same policy_id with loss date in the
     `years` years before 1 Jan of the policy year and reported before that date.
 
@@ -41,6 +42,6 @@ def claim_history(target_pol, all_pol_same_line, claims, years=(1, 2), perils=No
         start = t["cutoff"] - pd.DateOffset(years=y)
         w = j[j["loss_date"] >= j["cutoff"] - pd.DateOffset(years=y)]
         n = t["row_id"].map(w.groupby("row_id").size()).fillna(0.0)
-        observable = (start >= DATA_START) & t["seen_before"]
+        observable = (start >= data_start) & t["seen_before"]
         out[f"{prefix}_{y}y"] = np.where(observable, n, np.nan)
     return out
