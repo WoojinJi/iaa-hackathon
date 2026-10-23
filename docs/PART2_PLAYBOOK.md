@@ -14,6 +14,10 @@ ledger (report section 2).
    and rules as Part 1. Record each assumption as *held / broke / re-estimated*.
 3. **Day 3 onward — model.** Start from the Part 1 configuration; change it only through the same rules
    (+0.0005 D² for a feature or setting, +0.003 and tails for GBM, leakage excluded regardless).
+   - **Black-box benchmark (E10 stack):** run alongside our model on the same target, as a measured benchmark only (traceability tier 3).
+   - **Traceability, measured:** fit a surrogate GLM to the black-box predictions and report how much of them it reproduces.
+   - **Contents GBM:** partial-dependence plots of its main drivers, for the report (tier 2).
+   - **Frequency x severity (E11):** re-tested, not carried over. Expected to help where rating factors pull frequency and severity in opposite directions (claim history, cover type, voluntary excess) and claims are plentiful; expected not to help, or to fail the tails, if those factors are absent or weak, or claims are few (as in Part 1 buildings). Diagnose with `--directions` before `--validate`; widen the alpha list below 0.001.
 4. Before every submission: write the expected leaderboard change.
 
 ## Scenarios: detect → respond
