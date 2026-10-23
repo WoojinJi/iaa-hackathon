@@ -1,128 +1,180 @@
 # Report outline (5 pages, covers Part 1 and Part 2)
 
-Draft Oct 20 for discussion with Krista (Thursday 7 pm). Final report is due at the end of Part 2.
+First draft Oct 20; revised Oct 22 (structure kept, black-box comparison and AI checks woven in). Final report
+is due at the end of Part 2.
 
-**Thesis:** *AI writes the code; actuaries own the assumptions.* AI made the coding and the breadth of
-analysis fast, but it did not guarantee that the assumptions were right. Consistency came from transparent
-models, rules fixed before results, and people questioning every actuarial assumption against the data.
-Part 2 is used as a test of those assumptions.
+**Thesis:** *AI writes the code; actuaries own the assumptions. A black-box comparison measures what that
+ownership is worth.* AI made the coding and the breadth of analysis fast, but it did not guarantee that the
+assumptions were right: 24 of its outputs were wrong, 17 of them in judgement rather than code.
+Consistency came from transparent models, rules fixed before results, and people questioning every
+actuarial assumption against the data. A maximum-accuracy black box (E9) shows the price of that choice in
+score, and what it buys in fair prices and traceable errors. Part 2 tests the assumptions and the comparison.
 
 **Structure:** sections follow the pricing process; inside each section, Part 1 first, then what Part 2
-showed. One table — the **assumption ledger** (section 2) — runs through both parts.
+showed. Two threads run through every section:
+- the **assumption ledger** (section 2), with a Part 2 column;
+- one line **"AI did / we checked"** with the AI_USE_LOG entry numbers, so AI use is shown where it
+  happened, and section 5 only adds it up.
 
-**Judging weights:** Pricing performance and adaptation 40% (private scores Part 1 + Part 2, plus the
-panel's view of modelling choices, adaptation, data quality and uncertainty) · Effective use of AI 25% ·
-Trust, validation and guardrails 20% · Communication and documentation 15%.
+**Judging weights:** Pricing performance and adaptation 40% (private scores Part 1 + Part 2, equally
+weighted, plus the panel's view of modelling choices, adaptation, data quality and uncertainty) · Effective
+use of AI 25% · Trust, validation and guardrails 20% · Communication and documentation 15% (Rules 2.4.c).
 
 **Rule for every claim:** it points to a file in the repo (DECISIONS.md, ASSUMPTIONS.md, AI_USE_LOG.md,
-a notebook or a test).
+a notebook, a tool or a test).
+
+**Written before the Part 2 data (Oct 22), to be checked in Part 2:** *the black box scores higher, but
+when it is wrong we cannot say why, and its errors fall on the safest customers.*
 
 ---
 
 ## 0. Summary — ½ page (Krista drafts, Woojin checks numbers)
-- Task in one sentence: next-year risk premium per policy period, net of excess and recoveries.
+- Task in one sentence: next-year expected claim cost per policy period, net of excess and recoveries.
 - The thesis and three supporting points:
-  1. **Transparent by default:** GLM with readable rating tables; a more complex model only where it passed
-     rules fixed in advance (contents). The accuracy given up is measured.
+  1. **Transparent by default, with the cost measured:** GLM with readable rating tables; a GBM only where
+     it passed rules fixed in advance (contents). The black box (E9) shows what we gave up and why.
   2. **AI for code, people for assumptions:** code was checked cheaply with tests and sanity checks;
-     actuarial assumptions needed questions and experiments. Even a stronger model's two largest
-     domain claims were rebutted by our data.
-  3. **Part 2 as a test:** every assumption carried a "would be wrong if" condition, checked on the new market.
-- Results: Part 1 and Part 2 scores.
+     assumptions needed questions and experiments. Even a second model's two largest domain claims were
+     rebutted by our data.
+  3. **Part 2 as a test:** every assumption carried a "would be wrong if" condition, and the black-box
+     prediction was written down before the new data.
+- Results: Part 1 and Part 2 scores; black box vs ours in one line.
 - **Timeline strip:** Oct 16 data and target → Oct 19 first submissions, host answer on excess →
-  Oct 20 independent review, E5 → Part 2 …
+  Oct 20 independent review, E5, mix → Oct 21 pipeline, v11 → Oct 22 E9 → Part 2 …
 
 ## 1. Data and target — ½ page (Woojin)
 - **Part 1:** target definition (excess on every peril: host answer); data issues found and fixed as one
-  table (exposure in a 360-day year or days, 604 duplicates, 297 claims outside any period, repudiated
-  claims, renewal_decision in train only). AI was good at the breadth of these checks.
-- **Part 2:** which checks were rerun as they were, and new data issues.
-- **Evidence:** DECISIONS.md; `src/target.py`; tests.
+  table (exposure in a 360-day year or days, total exposure −25–28%; 604 duplicates; 297 claims outside
+  any period; repudiated claims; renewal_decision in train only).
+- **AI did / we checked:** AI found the exposure and duplicate issues (8, 9); a code error turned amounts
+  into dates and was caught by an implausible output (7); the excess assumption came from AI and was
+  settled by the host, not the leaderboard (41).
+- **Part 2:** which checks were rerun unchanged (`src/checks.py`), and new data issues.
+- **Evidence:** DECISIONS.md Oct 16–17; `src/target.py`; tests; `docs/checks_part1_report.md`.
 
-## 2. Assumptions: bringing past claims to next year's cost — 1¼ pages (Woojin) *[thesis point 2 and 3]*
-- **Part 1:** how each group was checked: development (truncation-corrected estimate within 0.3 points);
-  frequency (2023 level shift); severity (trends gross of excess; **BI reform** step 0.78–0.80, the apparent
-  post-reform rise comes from open reserves: 1.2% on closed claims); large losses (Pareto tail, range
-  1.2–3.8; the largest BI claims not affected by the reform); weather as location climate.
-- **Part 2:** the ledger's right-hand columns.
-- **Figure 1:** BI mean severity by loss quarter, all vs closed claims.
+## 2. Assumptions: bringing past claims to next year's cost — 1 page (Woojin) *[thesis point 2, 3]*
+- **Part 1:** how each group was checked:
+  - development: report-lag completeness; truncation-corrected estimate (Lynden-Bell) within 0.3 points;
+  - frequency: the 2023 drops were **mix**, so no shift (A/E 1.031 → 1.000);
+  - severity: trends gross of excess (leverage); **BI reform** step 0.78–0.80, applied as 0.83; the
+    apparent post-reform rise comes from open reserves (8.6% all claims, 1.2% closed);
+  - large losses: cap + Pareto loading (range 1.2–3.8); the largest BI claims not affected by the reform;
+  - weather as location climate (average 2021–24).
+- **AI did / we checked:** AI proposed the reform (13) and over-stated the mix effect (67); the team's
+  step scan and seasonality questions found what AI had not looked for (64–65).
+- **Part 2:** the ledger's right-hand column.
+- **Figures:** fig1 (frequency and severity brought to 2025 level, 6 panels); fig1b (BI severity by loss
+  quarter, all vs closed claims).
 - **Table: assumption ledger** (Part 1 filled; Part 2 filled after Part 2)
 
 | Assumption | Why we believe it | Part 1 evidence | Would be wrong if | Part 2 result |
 |---|---|---|---|---|
 | Excess on every peril | Contract term, per claim | Host answer | — | |
 | Late claims via completeness by peril | Reporting delay by peril | Two estimators within 0.3 points; speed unchanged | Reporting speed changes | |
-| Frequency level shift 2023 (own damage 0.93, TPP 0.95) | A change in 2023, then flat | Within every driver_assist / telematics group; completeness-adjusted | Year effect vanishes in a frequency GLM | |
+| No frequency level shift (removed Oct 20) | 2023 drops are mix, already in the features | Drops vanish after all rating features; A/E 1.031 → 1.000 | A drop remains after all features | |
 | Severity trends gross of excess, excess fixed | Inflation on ground-up loss; leverage | Net medians rise faster than gross | Rise is a one-off step | |
 | BI reform step 0.83, no post-reform trend | Legal change from a loss date | Step 0.78–0.80 in every fit, also on closed claims; post-reform 1.2% on closed claims | Step appears by report date only; trend appears once claims close | |
 | Large losses: cap + Pareto loading | Heavy liability tail; chance, not rating | Alpha stable across thresholds; range 1.2–3.8 | Tail not Pareto above the threshold | |
-| Weather as location climate | Next year's weather unknown; one year is noisy | Validation equal; leaderboard +0.0026 | Year factor leaves weather relativities unchanged | |
+| Weather as location climate | Next year's weather unknown | Validation within 0.001; leaderboard +0.0026 | — | |
 | Claim history predicts claims | Experience rating | Past-claim rows under-priced 22–80% before | Gradient disappears out of time | |
 | customer_service_contacts is leakage | Contacts caused by claims | 12–72× same-year vs next-year; test distribution differs | — | |
-| Relative premium (contents) | Insurer's price holds unseen information | +0.0010 D²; circular | — | |
+| Relative premium (contents), by start month | Insurer's price holds unseen information; mid-2021 rate step | +0.0010 D² (+0.0003 by month); circular | — | |
+| Flood risk is not additive (buildings) | Height and river distance matter within a flood zone | Five flood-geography pairs, +0.0025 D², tails better | Pairs not kept on Part 2 data | |
 
-## 3. Model: transparent by default — ¾ page (Woojin) *[thesis point 1]*
+## 3. Model: transparent by default, with the cost measured — 1 page (Woojin) *[thesis point 1]*
 - **Part 1:** ridge-penalised Tweedie GLM with banded factors and a balance factor (credibility, level,
-  readable tables); claim history; contents uses a shallow LightGBM (passed the tail rule).
-  **Measured trade-off:** GBM would raise buildings D² by about 0.009 but over-price the safest 10% by
-  15–30%; D² barely penalises this because their expected cost is small. We kept the GLM.
-- **Part 2:** what the same model needed to change for a new market.
-- **Figure 2:** decile A/E, GLM vs GBM, buildings.
+  readable tables) in motor and buildings; buildings with five flood interactions found by a GBM and
+  moved into the GLM (+0.0025, 28% of the GBM's gain); contents a shallow, regularised LightGBM (passed
+  the tail rule, +0.0106).
+- **The measured trade-off:** the buildings blend (E8) gains +0.0072 D² but over-prices the safest 10% by
+  about 27%; D² barely penalises this because their expected cost is small. Kept the GLM: over-priced safe
+  customers leave.
+- **Black box max vs ours (E9):** same target and loading; LightGBM everywhere, high capacity, every
+  non-leaking feature. One table:
 
-## 4. Validation and guardrails — ¾ page (Woojin, Krista edits) *[Trust; strictness]*
-- Rules fixed before results (table); two out-of-time folds.
-- Leaderboard used only to check predictions written before each submission: 7 of 9 consistent; the two
-  misses explained (v6 motor level; v8 weather, attributed with a second submission).
-- Planted-error test; leakage caught; reproducibility (v7 rebuilt within 0.002%); pipeline and CI.
+| | Ours (v11) | Black box max |
+|---|---|---|
+| Validation D² by line | | |
+| Public / private score | 0.12307 / | / |
+| Safest and riskiest 10%, A/E | | |
+| Seed spread per row (stability) | 0 (GLM) / contents | |
+| Planted errors attributed (traceability) | 6 of 7 (model-free checks) | |
+| Part 2: can we say what changed? | rating factors by name | score only |
+
+- **AI did / we checked:** AI's tie-break rule pointed the wrong way (33); the 3% limit on k had no
+  evidence (36); the blend was retested and rejected under the unchanged rule (81).
+- **Part 2:** what the same model needed to change, and the E9 comparison repeated.
+- **Figure:** fig4 (buildings decile A/E: GLM + interactions vs blend vs GBM).
+
+## 4. Validation and guardrails — ¾ page (Woojin, Krista edits) *[Trust]*
+- Rules fixed before results (table: GBM +0.003 and tails; feature +0.0005; removal −0.0005; leakage
+  excluded whatever its score); two out-of-time folds; settings chosen on the last training year only.
+- Leaderboard used only to check predictions written before each submission: of 12, 5 inside the range,
+  5 within 0.00025, 2 outside (v6 motor level; v8 weather, attributed with a second submission).
+- Planted-error test (AI's diagnostic rule 3 of 7; model-free checks 6 of 7); leakage caught; tools tested
+  on known answers first (the monthly step scan failed its control and was fixed); reproducibility (v9
+  rebuilt exactly); one-command pipeline, 46 tests, CI.
 - **Part 2:** the same rules reused unchanged (or what changed, and why).
-- **Table:** predicted vs observed leaderboard change per submission.
+- **Figure:** fig2 (predicted vs observed leaderboard change per submission).
 
-## 5. How we used AI — ½ page (Krista drafts from AI_USE_LOG) *[AI 25%; thesis point 2]*
-- Roles: one model writes code and analysis; a second model (new chat, no shared context) reviews the
-  assumptions; the team sets rules and decides.
-- **Counts from AI_USE_LOG:** entries by type (AI proposed / team questioned / AI error), and AI errors
-  split into code errors (caught by tests and checks) and assumption errors (caught by questions and data).
-- Examples: tie-break direction, frequency false alarm, a leaking feature suggested and withdrawn, the
-  final-submission rule assumed wrongly, the reviewer's two largest findings rebutted.
-- What we did not delegate: target definition, rules, adoption decisions.
+## 5. How we used AI — ¾ page (Krista drafts from AI_USE_LOG) *[AI 25%, Trust 20%]*
+- **Roles:** builder AI (code, tests, analyses, hypotheses) → reviewer AI (a second model in a new chat,
+  reviews but does not design fixes) → the team (rules and every decision). Figure fig3.
+- **Counts:** 82 entries: A 32 (AI proposed, team verified), H 27 (team questioned), E 24 (AI errors:
+  17 judgement, 7 code). The AI was rarely wrong about code and often wrong about what numbers meant.
+- **Six checking habits, one catch each:** "what was your criterion?" (22); test the AI's own rules (29);
+  independent reviewer (58–59); check the source, not the AI (41, 61); domain questions the AI did not
+  ask (64–65); numbers that look too familiar (82).
+- **One story in depth (same as the video):** the excess (41).
+- **What AI made possible:** a hypothesis tested within a day; pipeline and checks tool; 46 tests; an
+  expected score written before every submission.
+- **What we did not delegate:** target definition, rules, adoption decisions.
+- Layout example: `AI_사용로그_정리_및_보고서_레이아웃.pdf` (Oct 22).
 
 ## 6. Limitations, uncertainty and lessons — ½ page (both)
-- Uncertainty: BI post-reform trend (motor +5.1% if adopted), open-claim development, recoveries on open
-  claims (2024 −1.6%), large-loss loading range, premium circularity, four years of history.
+- Uncertainty: BI post-reform trend (motor +5.1% if adopted), open-claim development (IBNER), recoveries
+  on open claims (2024 −1.6%), large-loss loading range, motor level (features drift with time; under 1%),
+  premium circularity, customers with 2+ past claims under-priced, four years of history.
 - Lessons: effective use of AI meant knowing where to trust it. Code is cheap to verify; assumptions are
-  not. Strict, pre-set checks kept the work consistent across two markets.
+  not. A higher score is not a better price. Strict, pre-set checks kept the work consistent across two
+  markets.
 
 ## Appendix (outside the 5 pages, in the repo)
-- DECISIONS.md, ASSUMPTIONS.md, AI_USE_LOG.md, README (how to reproduce), tests.
+- DECISIONS.md, ASSUMPTIONS.md, AI_USE_LOG.md, PART2_PLAYBOOK.md (committed before Part 2), README (how to
+  reproduce), tests, tools.
 
 ---
 
 ## Figures (plan)
-| # | Figure | Shows | Section |
+| # | File | Shows | Section |
 |---|---|---|---|
-| 1 | Frequency and severity index by year, per line (6 small panels), with the adjustments marked; BI all vs closed claims | How assumptions were set and checked | 2 |
-| 2 | Leaderboard: expected range before each submission vs observed | Leaderboard used to check, not to decide (7 of 9) | 4 |
-| 3 | Roles flow (builder AI → reviewer AI → team decides) + AI log counts by type, AI errors split code vs assumptions | The thesis | 5 |
-| 4 | Decile A/E, GLM vs GBM, buildings | The measured trade-off | 3 |
-| — | Assumption ledger with status colours | Status at a glance (table) | 2 |
-| video | Pipeline diagram with guardrails; timeline; leakage example | — | — |
-| appendix | Data report (distributions by peril, tail plots, step scan), same code for Part 2 | — | repo |
+| 1 | fig1_freq_sev.png | Frequency and severity by year per line: raw vs brought to 2025 level | 2 |
+| 1b | fig1b_bi_reform.png | BI severity by loss quarter, all vs closed claims | 2 |
+| 2 | fig2_leaderboard.png | Expected range before each submission vs observed | 4 |
+| 3 | fig3_ai_roles.png | Builder AI → reviewer AI → team; log entries by type | 5 |
+| 4 | fig4_tails.png | Buildings decile A/E: GLM + interactions vs blend vs GBM | 3 |
+| 5 | fig5_outliers.png | Perils with the longest tails, largest claims, caps | 2 or appendix |
+| — | E9 table | Black box max vs ours | 3 |
+| — | Assumption ledger | Status at a glance (table) | 2 |
 
 ## Page budget
 | Section | Pages |
 |---|---|
 | 0 Summary | ½ |
 | 1 Data and target | ½ |
-| 2 Assumptions + ledger | 1¼ |
-| 3 Model | ¾ |
+| 2 Assumptions + ledger | 1 |
+| 3 Model + E9 | 1 |
 | 4 Validation | ¾ |
-| 5 AI | ½ |
+| 5 AI | ¾ |
 | 6 Limitations and lessons | ½ |
-| Figures (2) and timeline | ¼ |
 | **Total** | **5** |
 
-## To decide on Thursday
-1. Agree the thesis and the three points.
-2. Who writes which section, and the drafting deadline before Part 2 starts.
-3. Figures: the two above plus at most one more.
-4. Video (5 minutes): Krista records; script follows the thesis → ledger → model trade-off → AI roles.
+## Video (5 minutes)
+| # | Content | Time | Who (proposal; open to swapping) |
+|---|---|---|---|
+| 1 | Thesis | 0:30 | Krista |
+| 2 | Adjustments and the assumption ledger | 1:30 | Woojin |
+| 3 | Model trade-off: ours vs the black box | 1:00 | Woojin |
+| 4 | AI roles and one error in depth (the excess) | 1:00 | Krista |
+| 5 | What Part 2 changed | 1:00 | Woojin |
+Storyboard, script and recording tool to be decided.
