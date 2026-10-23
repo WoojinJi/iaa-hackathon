@@ -19,3 +19,4 @@ results/
 /*.pdf
 catboost_info/
 .Rhistory
+data_part2/
