@@ -658,6 +658,35 @@ differ by more than 1%).
 - Open for v2: new-business relativity against the developed market (rule 1): buildings over-prices new
   business (0.60), contents under-prices it (1.38); buildings highest decile under-priced (1.66).
 
+### E9-P2: black box max vs ours on the emerging market (Oct 23 evening) — benchmark only [tools/exp_blackbox_p2.py]
+- Same as E9 (LightGBM in every line, 127 leaves, 3 seeds, every non-leaking feature, no peril split, no hand-built
+  interactions); trees chosen on a 20% policy holdout inside the training year. Fit 2023, validate 2024, all perils.
+- D²: motor 0.0177 (ours) vs 0.0176 (black box); buildings 0.0257 vs −0.0182; contents 0.0316 vs 0.0055;
+  pooled 0.0806 vs 0.0623. Black box A/E: buildings 0.60 (it learned the 2023 fire-cluster level as normal and
+  over-priced 2024 buildings by about two thirds), pooled 0.84.
+- Tails (lowest / highest decile A/E): buildings 0.40 / 0.55 (ours 0.66 / 1.66); motor 0.96 / 1.40 (ours
+  0.75 / 0.98); contents 1.22 / 1.14 (ours 1.04 / 0.92). Seed spread per row 8.5–10% (ours 0).
+- Against the prediction written on Oct 22: "the black box scores higher" did not hold (nor in Part 1, E9);
+  "its errors fall on the safest customers" held for buildings (safest 10% priced 2.5× actual) but not
+  consistently in motor and contents. The fire-cluster area check (hail days ≤ 16.25, 59% of weight) did not
+  separate the models; the evidence is the buildings level.
+- Caveat: one training year in this fold; the final models use two.
+
+### E13: shallow trees on frequency and severity by peril (Oct 23 evening) — screening [tools/exp_trees_p2.py]
+- Per line and peril: LightGBM depth 1 (main effects) vs depth 2 (pairs), fit 2023, checked on 2024 (D² after scaling
+  to the 2024 total). Frequency on all rows; severity on claims with net cost > 0 only. Screening rule (set before
+  running): pairs go to a GLM test if the 2024 gain is ≥ +0.002 (frequency) or ≥ +0.005 (severity).
+- Severity: all nine peril models have negative 2024 D², depth 1 included (−0.01 to −0.08): within a peril, claim size
+  is not predictable from the rating factors. Severity is effectively a peril average.
+- Frequency pairs that hold out of time: motor own_damage +0.0120 (cover_type × voluntary_excess, cover_type ×
+  years_licensed, cover_type × ncb_years; own damage is covered only under comprehensive cover) and motor
+  third_party_prop +0.0033 (ncb_years × years_licensed, driver_age_band × gender). All other perils negative.
+- Flood frequency is strongly predictable from main effects alone (depth-1 D² 0.25 buildings, 0.16 contents: elevation,
+  flood zone, distance to river); pairs add nothing (−0.006). Buildings fire (−0.04) and escape of water have no
+  predictable structure, supporting the flat fire rate.
+- Next (to test under the Part 1 rule): motor own_damage structure (E14); a buildings flood GLM without pairs once the
+  team decides how flat-rated parts enter the tail condition (E12); peril frequency × peril-average severity.
+
 ### Submission p2_v1 (Part 2 baseline)
 - `python -m src.pipeline --market part2 --out submissions/p2_v1.csv`
 - **Expected public score, written before submitting: 0.06–0.10 (centre about 0.08).** Basis: pooled 2024
