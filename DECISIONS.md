@@ -719,6 +719,18 @@ differ by more than 1%).
   over-pricing, the team's stated priority. Hypothesis to test as a new, pre-registered experiment: the flat
   fire rate (96 for every policy) drives the low-decile over-prediction in every variant.
 
+### Rule change: tail condition with flat-rated parts (Oct 24, decided by Woojin)
+- From now on, when part of a line is priced at one flat rate per exposure (buildings fire), the lowest/highest
+  decile condition is measured on the modelled part only: deciles ranked by predicted rate (the order is the same
+  with or without the flat part), A/E = actual ÷ predicted excluding the flat-rated peril. D² and overall A/E stay
+  on all perils (the basis of the leaderboard score); the flat rate is checked through the overall A/E and its
+  own assumption (developed average).
+- Why: in the safest decile the flat fire rate (96) is most of the prediction, so with fire included the condition
+  measured whether fire happened to hit those policies, not whether the model ranked them well. The Part 1 rule was
+  written when every model priced all perils together, so the two readings were the same.
+- Disclosure: the issue was noticed after E12 failed the condition (AI 102). The change applies to every later
+  comparison, not only E12; E12 is re-judged below under both readings.
+  
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
 ### Target
