@@ -780,6 +780,40 @@ differ by more than 1%).
 - **Expected public: 0.120–0.155 (centre about 0.135).** Basis: public/validation ratios so far 1.39 (p2_v1) and 1.22
   (p2_v2) give 0.134–0.152; additive (p2_v2 public + validation gain 0.018) gives 0.130; if the gain does not carry
   over, as with p2_v2, about 0.112. This submission tests whether validation gains reach the leaderboard.
+- **Public (Oct 24, 12:02): 0.12187**, inside the written range 0.120–0.155 (low end); +0.010 over p2_v2 against a
+  validation gain of +0.018 (about half carried over; p2_v2 carried almost none). Developed data as training data is
+  confirmed as a real gain; the gap to the leaders (0.136–0.164) remains 0.015–0.04.
+
+### E18: weight of developed rows in combined training (Oct 24) — no change [notebook 23]
+- Rule (fixed before running): candidates per line chosen by 3-fold CV inside emerging 2023 (developed rows always in
+  training, level set on the emerging rows); adopted if 2024 D² is at least +0.0005 over v3 and the tail condition holds.
+- Motor: CV picks developed only (current, CV 0.0430; combined weights 1 / 0.3 / 0.1: 0.0426 / 0.0413 / 0.0381) — kept.
+- Contents: CV picks developed weight 0.1 (CV 0.0783 vs 0.0754): 2024 D² 0.0647 vs 0.0638 (+0.0009), but the highest
+  decile moves from 1.03 to 0.83 (0.14 further from 1; limit 0.1) — kept at weight 1.
+- Buildings other perils: CV picks combined weight 1 (2024 D² 0.0991 vs 0.0720) = E17b's B3, which fails the lowest
+  decile under rule b (0.46 vs 0.89) — kept emerging only. (The notebook's buildings tails were computed on the other
+  perils only; the decision uses the rule-b figures from E17b.) Third time the same result: combining the other
+  buildings perils raises D² by about 0.02–0.03 but over-prices the safest emerging homes.
+
+### E19: weather in a fair fold (Oct 24) [notebook 23]
+- Concern: the address average (2023–24) includes the validation year, which could flatter it; the test's 2025
+  weather differs (freezing days 17 -> 29, hail days 17 -> 11).
+- Pooled 2024 D² with v3: average 2023–24 0.1096; average 2023 only (as the test sees it) 0.1104; actual weather of
+  the year 0.1105. No fold bias and no gain from actual weather (contents lowest decile 0.46 with actual weather).
+  Weather is not the cause of the leaderboard gap; the address average stays.
+
+### E9-P2b: black box with the same data (Oct 24) [tools/exp_blackbox_p2b.py]
+- Combined (developed + emerging) LightGBM vs ours (v3), validation: motor 0.0398 vs 0.0373 (+0.0025, below the
+  +0.003 rule; safest decile 0.46 vs 0.72); contents 0.0531 vs 0.0638. Buildings re-run pending (the black-box config
+  had kept the flood GLM; fixed). Same data lifts the black box a lot (motor 0.018 -> 0.040), but it does not beat
+  the GLM by a margin: the remaining gap is not model capacity.
+
+### Diagnostic submissions p2_v3_level_x0.9 / x1.1 (Oct 24) — expected directions written before submitting
+- Every v3 prediction multiplied by 0.9 / 1.1 (ranking unchanged; level only). The validation cannot see level
+  assumptions (trends, completeness, caps, loading, fire rate: applied to actual and predicted alike).
+- Expected if our level is right: both below 0.12187. If x0.9 rises, our level is too high (trend or loading);
+  if x1.1 rises, too low. Changes within ±0.003 mean level is not the cause of the gap. Diagnostics only, never
+  the final selection.
 
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
