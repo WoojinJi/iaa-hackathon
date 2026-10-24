@@ -98,4 +98,9 @@ PART2["peril_models"] = {"buildings": [{
     "pairs": [["flood_zone", "sum_insured"], ["elevation_m", "flood_zone"], ["elevation_m", "sum_insured"],
               ["building_age", "flood_zone"], ["distance_to_river_km", "flood_zone"]]}]}
 
+# Oct 24 (E17, notebook 23): developed data as training data (v3)
+PART2["construction_codes"] = {"BRK": "brick", "STN": "stone", "WOD": "timber", "MIX": "non-standard"}
+PART2["developed_training"] = {"motor": "developed", "contents": "combined"}
+PART2["peril_models"]["buildings"][0]["train"] = "combined"
+
 MARKETS = {"part1": PART1, "part2": PART2}

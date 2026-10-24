@@ -760,6 +760,27 @@ differ by more than 1%).
 - Note: E13 found no out-of-time gain from pairs on flood frequency, but on cost C (pairs) beats D (none) by 0.020;
   the pairs may act through claim size (e.g. sum insured × flood zone).
 
+### E16: features shared by ours and the black box (Oct 24) [notebook 23]
+- Public (Oct 24, 11:44): p2_v2_flood 0.11185 (expected 0.115–0.130: miss, below; +0.0002 over p2_v1 against a
+  validation gain of +0.011); p2_blackbox_experiment 0.07566 (expected 0.09–0.11: miss, below). The black box with every
+  model-side feature scores far below ours, so the gap to the leaders (0.136–0.164) is not model structure or those
+  features; candidates are what both share: average weather, the target construction, the excluded features, and
+  training on emerging data only.
+- Validation fold, pooled D² against the base 0.0806 (run on the pre-flood config; relative comparison):
+  actual-year weather 0.0822 (+0.0016; contents up, buildings safest decile 0.49), marketing variables 0.0806 (0),
+  relative premium (annual definition) in all lines 0.0841 (+0.0035). None explains a gap of 0.05.
+- Not visible to this validation: the level assumptions (trends borrowed from developed apply to both actual and
+  predicted in the fold). Tested next: developed data as training data (E17).
+
+### Submission p2_v3_developed (Oct 24) — expected public score written before submitting
+- `python -m src.pipeline --market part2 --out submissions/p2_v3_developed.csv` (E17 adopted: motor developed
+  relativities, buildings emerging other perils + combined flood + fire flat, contents combined + market).
+- Pipeline validation (fit 2023 + developed 2021–24, validate 2024): motor 0.0373, buildings 0.0720 (tails b 0.89 / 1.02),
+  contents 0.0638; pooled 0.1096 (p2_v2 0.0919, p2_v1 0.0806). Part 1 reproduced exactly after the patch.
+- **Expected public: 0.120–0.155 (centre about 0.135).** Basis: public/validation ratios so far 1.39 (p2_v1) and 1.22
+  (p2_v2) give 0.134–0.152; additive (p2_v2 public + validation gain 0.018) gives 0.130; if the gain does not carry
+  over, as with p2_v2, about 0.112. This submission tests whether validation gains reach the leaderboard.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
