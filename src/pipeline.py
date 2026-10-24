@@ -120,6 +120,17 @@ def build_line(line, cfg, claims):
     if pairs:                                   # bands learned on the training table
         tr, te = add_pairs(tr, [tr, te], pairs)
         feats = feats + [pair_name(a, b) for a, b in pairs]
+    pms = cfg.get("peril_models", {}).get(line, [])
+    if pms:                                     # perils with their own GLM (Part 2: buildings flood)
+        mpx = adjust_claims(match_claims(claims, p, line, True, cap=None), cfg["adj"][line])
+        tr["target_modelled"] = tr["target"]    # all modelled perils (excludes a flat-rated peril)
+        for spec in pms:
+            col = f"target_{spec['peril']}"
+            tr[col] = tr.row_id.map(mpx[mpx.peril == spec["peril"]].groupby("row_id").net_adj.sum()).fillna(0.0)
+            tr["target"] = (tr["target"] - tr[col]).clip(lower=0.0)   # float rounding only
+            if spec.get("pairs"):
+                tr, te = add_pairs(tr, [tr, te], [tuple(x) for x in spec["pairs"]])
+        log(f"{line}: own GLM for {[s['peril'] for s in pms]}; main GLM on the other perils")
     missing = [c for c in feats if c not in tr.columns]
     assert not missing, f"features missing from the table: {missing}"
     return {"p": p, "pt": pt, "tr": tr, "te": te, "feats": feats, "comp": comp,
@@ -162,7 +173,14 @@ def predict_rate(line, cfg, tr, X_new, feats):
     """Fit on tr, return the predicted cost per unit of weight for X_new (before loading)."""
     if cfg["model"][line] == "glm":
         g = BandedTweedieGLM(**cfg["glm"][line]).fit(tr[feats], tr.target / tr.weight, tr.weight)
-        return g.predict_rate(X_new[feats]), f"GLM, k={g.k_:.4f}"
+        rate, info = g.predict_rate(X_new[feats]), f"GLM, k={g.k_:.4f}"
+        for spec in cfg.get("peril_models", {}).get(line, []):
+            f = [c for c in spec["features"] if c in tr.columns] + [pair_name(*x) for x in spec.get("pairs", [])]
+            col = f"target_{spec['peril']}"
+            gp = BandedTweedieGLM(**dict(cfg["glm"][line], alpha=spec["alpha"])).fit(tr[f], tr[col] / tr.weight, tr.weight)
+            rate = rate + gp.predict_rate(X_new[f])
+            info += f" + {spec['peril']} GLM ({len(f)} features, alpha {spec['alpha']}, k={gp.k_:.4f})"
+        return rate, info
     rate = np.zeros(len(X_new))
     for s in cfg["gbm_seeds"]:
         m, cats, k, n = fit_gbm(tr, feats, dict(cfg["gbm"][line], seed=s))
@@ -233,12 +251,19 @@ def validate(cfg=PART1, lines=None):
             tr, va = d["tr"][d["tr"].year.isin(tys)], d["tr"][d["tr"].year == vy]
             rate, _ = predict_rate(line, cfg, tr, va, d["feats"])
             pv = (rate + d.get("sep_rate", 0.0)) * va.weight.to_numpy()
-            if "target_all" in va:              # separately priced peril: evaluate on all perils
+            tails_b = None
+            if "target_all" in va:              # flat-rated peril: tails on the modelled part (rule of Oct 24)
+                act_mod = (va["target_modelled"] if "target_modelled" in va else va["target"]).to_numpy()
+                pm = rate * va.weight.to_numpy()
+                q = pd.qcut(pd.Series(pm / va.weight.to_numpy()).rank(method="first"), 10, labels=False).to_numpy()
+                tails_b = (act_mod[q == 0].sum() / pm[q == 0].sum(), act_mod[q == 9].sum() / pm[q == 9].sum())
                 va = va.assign(target=va.target_all)
             r = evaluate(va.target, pv, va.weight, show=False)
             pooled.setdefault(vy, []).append(pd.DataFrame({"a": va.target.to_numpy(), "p": pv, "w": va.weight.to_numpy()}))
             lf = r["lift"]["A/E"]
             row = {"line": line, "year": vy, "D2": r["D2"], "A/E": r["A/E"], "low": lf.iloc[0], "top": lf.iloc[-1]}
+            if tails_b:
+                row["low b"], row["top b"] = tails_b
             if "new_business" in va:            # rule 2 (Oct 23): new business is 76% of the Part 2 test
                 nb = va.new_business.astype(bool).to_numpy()
                 act = va.target.to_numpy()

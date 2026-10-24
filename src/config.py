@@ -90,4 +90,12 @@ PART2["glm"]["contents"]["alpha"] = 2
 PART2["peril_split"] = {"buildings": {"peril": "fire", "rate": "developed"}}   # or a number per exposure
 PART2["loading"]["buildings"] = {"method": "none"}                              # fire rate is uncapped
 
+# Oct 24 (E12 re-judged, notebook 23): buildings flood priced by its own GLM
+PART2["peril_models"] = {"buildings": [{
+    "peril": "flood", "alpha": 0.5,
+    "features": ["flood_zone", "elevation_m", "distance_to_river_km", "rainfall_mm", "basement", "property_type",
+                 "sum_insured", "building_age", "urban_density", "soil_type", "construction_type", "voluntary_excess"],
+    "pairs": [["flood_zone", "sum_insured"], ["elevation_m", "flood_zone"], ["elevation_m", "sum_insured"],
+              ["building_age", "flood_zone"], ["distance_to_river_km", "flood_zone"]]}]}
+
 MARKETS = {"part1": PART1, "part2": PART2}

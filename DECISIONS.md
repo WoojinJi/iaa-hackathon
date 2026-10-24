@@ -687,18 +687,21 @@ differ by more than 1%).
 - Next (to test under the Part 1 rule): motor own_damage structure (E14); a buildings flood GLM without pairs once the
   team decides how flat-rated parts enter the tail condition (E12); peril frequency × peril-average severity.
 
-### Submission p2_v1 (Part 2 baseline)
-- `python -m src.pipeline --market part2 --out submissions/p2_v1.csv`
-- **Expected public score, written before submitting: 0.06–0.10 (centre about 0.08).** Basis: pooled 2024
-  validation D² 0.0806. Up: the final model trains on two years. Down: 76% new business with an uncertain
-  relativity; history for 24% of test rows; the fire assumption; a smaller test (more public-score noise
-  than Part 1). The range is wide on purpose; later submissions are judged against this one.
+### Rule 1 applied: new business against the developed market [notebook 22_part2_new_business]
+- **Credibility formula (fixed before running):** if the emerging relativity differs from the developed one by
+  more than two standard errors, use Z x emerging + (1 - Z) x developed on the log scale, with limited-fluctuation
+  credibility Z = min(1, sqrt(n / 1,082)), n = emerging new-business claims (full credibility: 90% within ±5%).
+- **Method:** GLM on 2023–24 (emerging) and 2021–24 (developed) with the same features (developed ages banded
+  like the emerging age bands; buildings without fire in both); emerging standard error by bootstrap over
+  policies (30 resamples).
+- **Result:** new_business relativity motor 1.110 vs 1.086 (0.8 SE), buildings 1.059 vs 1.037 (0.5 SE),
+  contents 1.077 vs 0.983 (1.5 SE). **No line differs by more than two standard errors; the emerging values
+  are kept (no change from p2_v1).** The raw gaps (e.g. motor 1.17 age-standardised vs 1.36–1.43) were
+  portfolio mix, explained by the other rating factors.
+- **Note:** renewal_count is 0 for every new-business row, so part of the new-business effect sits in its 0 level;
+  the comparison is like for like (same structure in both markets), but the total new-business loading for the
+  report must combine both factors.
 
-- **Public score (Oct 24, 00:08, after the host fixed the scorer): 0.11166**, above the written range 0.06–0.10
-  (miss, upward by about 0.012). Most likely cause: the validation fold trains on one year (2023, with the fire
-  cluster and an unstable new-business effect); the submission trains on two. Expected ranges for later
-  submissions are set relative to this score. First Part 2 submission on the leaderboard; selected by hand.
-## Assumptions register (status as of Oct 22, after E1–E11)
 ### Part 1 correction: relative premium (Oct 23) [notebook 22]
 - written_premium is the full annual premium; median written premium in Part 1 is flat by start month every year
   (contents 2021: 115–118) and rises about 5–6% a year. There was no mid-2021 rate step: the policy scan divided
@@ -719,6 +722,20 @@ differ by more than 1%).
   over-pricing, the team's stated priority. Hypothesis to test as a new, pre-registered experiment: the flat
   fire rate (96 for every policy) drives the low-decile over-prediction in every variant.
 
+### Submission p2_v1 (Part 2 baseline)
+- `python -m src.pipeline --market part2 --out submissions/p2_v1.csv`
+- **Expected public score, written before submitting: 0.06–0.10 (centre about 0.08).** Basis: pooled 2024
+  validation D² 0.0806. Up: the final model trains on two years. Down: 76% new business with an uncertain
+  relativity; history for 24% of test rows; the fire assumption; a smaller test (more public-score noise
+  than Part 1). The range is wide on purpose; later submissions are judged against this one.
+
+- **Public score (Oct 24, 00:08, after the host fixed the scorer): 0.11166**, above the written range 0.06–0.10
+  (miss, upward by about 0.012). Most likely cause: the validation fold trains on one year (2023, with the fire
+  cluster and an unstable new-business effect); the submission trains on two. Expected ranges for later
+  submissions are set relative to this score. First Part 2 submission on the leaderboard; selected by hand.
+
+## 2026-10-24 — Tail rule for flat-rated parts; E12 re-judged
+
 ### Rule change: tail condition with flat-rated parts (Oct 24, decided by Woojin)
 - From now on, when part of a line is priced at one flat rate per exposure (buildings fire), the lowest/highest
   decile condition is measured on the modelled part only: deciles ranked by predicted rate (the order is the same
@@ -730,7 +747,20 @@ differ by more than 1%).
   written when every model priced all perils together, so the two readings were the same.
 - Disclosure: the issue was noticed after E12 failed the condition (AI 102). The change applies to every later
   comparison, not only E12; E12 is re-judged below under both readings.
-  
+
+### E12 re-judged under the Oct 24 tail rule — C adopted [notebook 23_part2_flood_rule]
+- Reading a (all perils, as on Oct 23) reproduced exactly: A 0.662 / 1.660, C 0.514 / 0.767.
+- Reading b (modelled part, the rule above): A 0.742 / 1.884; B 0.521 / 1.839 (fails); C 0.926 / 0.783
+  (passes); D 0.948 / 0.788 (passes). D² (all perils): A 0.0257, B 0.0411, C 0.0631, D 0.0433.
+- **Adopted: C** (highest D² among those passing): buildings = flood GLM (12 flood-related features + Part 1's five
+  flood-geography pairs, alpha 0.5 by CV inside 2023) + other-perils GLM (alpha 10) + fire at the developed rate.
+  In the pipeline: `tools/patch_part2_oct24c.py` (values fixed from this notebook).
+- With fire excluded, C prices the safest decile closer to cost than the baseline (0.93 vs 0.74): the Oct 23 failure
+  came from the flat fire rate, not from over-pricing safe customers.
+- Note: E13 found no out-of-time gain from pairs on flood frequency, but on cost C (pairs) beats D (none) by 0.020;
+  the pairs may act through claim size (e.g. sum insured × flood zone).
+
+## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
 ### Target
