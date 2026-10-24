@@ -694,6 +694,10 @@ differ by more than 1%).
   relativity; history for 24% of test rows; the fire assumption; a smaller test (more public-score noise
   than Part 1). The range is wide on purpose; later submissions are judged against this one.
 
+- **Public score (Oct 24, 00:08, after the host fixed the scorer): 0.11166**, above the written range 0.06–0.10
+  (miss, upward by about 0.012). Most likely cause: the validation fold trains on one year (2023, with the fire
+  cluster and an unstable new-business effect); the submission trains on two. Expected ranges for later
+  submissions are set relative to this score. First Part 2 submission on the leaderboard; selected by hand.
 ## Assumptions register (status as of Oct 22, after E1–E11)
 ### Part 1 correction: relative premium (Oct 23) [notebook 22]
 - written_premium is the full annual premium; median written premium in Part 1 is flat by start month every year
