@@ -983,6 +983,13 @@ differ by more than 1%).
   load) 0.132-0.138; p2_v5_net (+ new business x1.3) 0.140-0.145. The pair gives the new-business optimum on the
   corrected basis.
 
+### 2026-10-24 — v5a / v5 pre-registered expectations (before 20:00 ET reset)
+- p2_v5a_net_noload (amounts_net + E22, no load): expected public 0.132–0.138
+- p2_v5_net (same + NB x1.3): expected public 0.140–0.145
+- Decision rule: NB optimum on corrected basis kN = bN/cN (cN = 0.4009). If 1.25 <= kN <= 1.35, keep v5 as final, no fine-tuning (0.05 of load = ±0.0002).
+  Otherwise build v6 with nb_load = kN.
+- Same rule in score terms: keep v5 iff 0.00541 <= S_v5 - S_v5a <= 0.01034. Gain <= 0 means kN <= sqrt(1.3) = 1.140.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
