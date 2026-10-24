@@ -106,5 +106,6 @@ PART2["peril_models"]["buildings"][0]["train"] = "combined"
 # Oct 24: broker portfolio load on 2025 new business (DECISIONS, "Broker portfolio load")
 PART2["nb_load"] = 1.3                        # re-estimated after the excess fix (was 1.5 in v4)
 PART2["amounts_net"] = True                   # Oct 24: claim amounts are net of excess
+PART2["row_completeness"] = True              # Oct 24 (E22): completeness of each row's own period
 
 MARKETS = {"part1": PART1, "part2": PART2}

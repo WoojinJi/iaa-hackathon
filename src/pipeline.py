@@ -284,6 +284,7 @@ def apply_loading(line, cfg, rate, tr, d, claims):
 # --------------------------------------------------------------------- runs
 def run(cfg=PART1, out=None):
     T.AMOUNTS_NET = bool(cfg.get("amounts_net", False))
+    T.ROW_COMPLETENESS = bool(cfg.get("row_completeness", False))
     claims = load_claims(cfg["data_dir"])
     sp = Path(cfg["data_dir"])
     sample = (pd.read_parquet(sp / "sample_submission.parquet") if (sp / "sample_submission.parquet").exists()
@@ -319,6 +320,7 @@ def run(cfg=PART1, out=None):
 def validate(cfg=PART1, lines=None):
     """Out-of-time folds on the capped target (no loading), as in the notebooks."""
     T.AMOUNTS_NET = bool(cfg.get("amounts_net", False))
+    T.ROW_COMPLETENESS = bool(cfg.get("row_completeness", False))
     claims = load_claims(cfg["data_dir"])
     rows, pooled = [], {}
     for line in lines or cfg["lines"]:

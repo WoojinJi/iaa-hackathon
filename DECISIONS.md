@@ -916,6 +916,73 @@ differ by more than 1%).
 - For reference, the E10 stack (not selected, tier 3) had private 0.13311, +0.0021 over v12, at the cost of
   over-pricing the safest 10% by 30-40% in validation.
 
+### Blind design by a second AI, compared with ours (Oct 24) [AI 108]
+- A fresh chat (Claude Opus 5.5, no project context; the Fable spending limit was reached) was given only the
+  Overview, the Dataset Description and raw counts, and asked how it would build the model.
+- It defined the target correctly at once ("paid is already net of excess; do not deduct it again"), the error we
+  found today. It asked whether incurred is already net of recoveries. **Checked:** no; recoveries are a fixed share
+  of incurred (own damage 0.8, theft 0.3) and never exceed it, so incurred - recoveries is right.
+- For the broker book it did not know the direction (default factor 1.0 ±15%) and proposed looking for identifying
+  columns. **Checked:** test vs training new business on days_quote_to_inception, written_premium (+4.5-6%, the 2025
+  rate level), missed payments, prior claims, licence points, years at address, household size, branch,
+  previous insurer, campaign, payment method, marketing segment, discount, document preference, email domain: all
+  alike (TVD 0.003-0.043). The book is identified only by the new_business flag.
+- It proposed the developed model as an offset with emerging relativities by credibility; ours uses one emerging
+  level factor for motor, so emerging-only effects (gender, regions E01-E06) are not learned. Tested as E21.
+
+### E21: developed model as offset, emerging relativities shrunk toward it (Oct 24) — rule fixed before running
+- Base o = developed GLM on emerging features (as v5); emerging GLM on all emerging features fitted to y/o with
+  weight w*sqrt(o) (exact for Tweedie p = 1.5), ridge alpha fixed at the CV values (motor 10, contents 2); level
+  rebalanced to the training total. Motor and contents; buildings excluded (E17: developed data over-prices its
+  safest decile). Corrected target (net of excess). Fold: fit 2023, validate 2024.
+- Rule (Part 1 GLM rule): adopt per line if D² +0.0005 or more and both tails no more than 0.1 further from 1 than
+  the current model. Alpha x0.3 and x3 reported as sensitivity only.
+
+- **Result:** motor D² 0.0366 -> 0.0368 (+0.0002), tails alike (0.80 / 0.88 -> 0.79 / 0.89): not adopted.
+  Contents 0.0538 -> 0.0542 (+0.0004, 0.0001 short of the rule): not adopted, although the safest decile moves from
+  A/E 0.74 to 1.06 (top 0.99 -> 0.97); recorded as an observation, the rule is not changed after the result.
+  Sensitivity: alpha x0.3 motor +0.0003, contents -0.0025; x3 motor +0.0001, contents +0.0003. Only one feature is
+  emerging-only (43 vs 42), so the developed base already carries the relativities: the structural difference
+  from the blind design does not change the score; the decisive difference was the target definition.
+
+### Independent review of Part 2, triaged (Oct 24) [AI 109]
+- Fresh chat (Claude Opus 5.5) with config, pipeline, target, the Dataset Description and the Part 2 log.
+- **Rebutted with data:** recoveries already in incurred (no: fixed shares 0.8 / 0.3, never above incurred);
+  730-day truncation of completeness (emerging vs developed Lynden-Bell within 0.01-0.04); IBNER (Oct 17: open and
+  closed severity alike); test-only missing weather for broker addresses (100% of test new-business addresses have
+  2023-24 weather); history encoding (test new business and training 2023 / 2024 new business share the 'missing'
+  level); fire as a weather effect (2023, 49 fires, was less dry than 2024, 21 fires: wildfire 0.503 vs 0.549, dry
+  summer 0.679 vs 0.711; 2024 emerging fire frequency 1.74 per 1,000 matches developed 1.7-2.1, so the developed
+  flat rate stands; 2025 is wetter, 0.605).
+- **Confirmed:** completeness by calendar year biases new business. 2024 row-level completeness (each row's own days)
+  vs the year average used: motor new business 0.777 vs 0.839 (renewals 0.847), buildings 0.922 vs 0.953, contents
+  0.944 vs 0.965 (2023 within 0.01). New-business rows (mean exposure 0.47, mostly late in the year) were given too
+  much weight, so the new-business risk was under-estimated by about 4% motor, 2% buildings, 1.5% contents; the fold
+  could not see it (same weights on validation actuals). Fixed as E22.
+- **Accepted, small:** sev_trend docstring ("gross amounts") outdated; BI trend 0% borrowed although the emerging
+  market has no reform (sensitivity); buildings large-loss loading off (developed observed 2.33, about 0.7%).
+- **Accepted for the report:** probe mathematics confirmed (derivation and curvature, ±0.0007 per 0.1 of load);
+  report k* intervals from subset bootstrap; three classes of assumption (documented definition / calibrated on the
+  leaderboard / borrowed and unverifiable), each with "would be wrong if"; premium sensitivity (±8% of the book per
+  0.1 of load) next to score sensitivity; what an insurer would do in practice (broker loss bordereau, review clause,
+  monthly A/E monitoring of the book).
+- **Deferred:** customer snapshot variables (licence_points) as possible same-year leakage.
+
+### E22: completeness by each row's own period (Oct 24) — rule fixed before running
+- Year completeness (the total by year) unchanged; within a year each row's weight is scaled by its own period's
+  completeness relative to the year's exposure-weighted average (Lynden-Bell by peril, amount shares by peril).
+  `ROW_COMPLETENESS` in src/target.py (default False; Part 1 unchanged), on in PART2.
+- Rule (definition correction, Oct 21): adopt if validation D² does not fall by more than 0.0005 and tails stay
+  within 0.1. v5a / v5 are rebuilt with E22 before the 8 pm submissions.
+
+- **Result:** validation 2024 (same actuals as v5 before E22): pooled D² 0.1071 -> 0.1077; motor 0.0366 -> 0.0373
+  with new-business A/E 0.94 -> 1.00 (as predicted by the row-level completeness); buildings 0.0688 -> 0.0684
+  (new business 0.66 -> 0.69); contents 0.0538 -> 0.0539; tails within 0.01 of before. **Adopted.** Part 1 reproduced
+  exactly (v11 +0.000%), 46 tests pass. Test total +1.2% (new-business rows up).
+- Submissions after the 8 pm reset, expected before submitting: p2_v5a_net_noload (corrected target + E22, no
+  load) 0.132-0.138; p2_v5_net (+ new business x1.3) 0.140-0.145. The pair gives the new-business optimum on the
+  corrected basis.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 

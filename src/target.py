@@ -22,6 +22,8 @@ LARGE_LOSS_CAP = 500_000
 
 # Claim amounts already net of excess (Dataset Description; DECISIONS Oct 24). False reproduces Part 1.
 AMOUNTS_NET = False
+# Completeness of each row's own period within its year (DECISIONS Oct 24, E22). False reproduces Part 1.
+ROW_COMPLETENESS = False
 
 # Two claims identical on all of these columns are one duplicated record.
 DUP_KEY = ["policy_id", "line", "peril", "loss_date", "report_date", "status",
@@ -244,6 +246,27 @@ def year_completeness(adjusted, years=YEARS, method="ref_year", valuation_date=V
     return pd.Series(out, name="completeness")
 
 
+def row_timing_factor(mc, policies, valuation_date=VALUATION_DATE):
+    """Each row's completeness over its own days relative to its year's exposure-weighted average (E22).
+    Lynden-Bell by peril, mixed by each peril's share of the adjusted amount. The year total is unchanged."""
+    share = mc.groupby("peril")["net_adj"].sum()
+    share = share / share.sum()
+    F = {k: lag_cdf_lynden_bell(g["report_lag"], (valuation_date - g["loss_date"]).dt.days) for k, g in mc.groupby("peril")}
+    out = np.ones(len(policies))
+    pos = pd.Series(np.arange(len(policies)), index=policies.index)
+    for y, q in policies.groupby("year"):
+        days = pd.date_range(f"{y}-01-01", f"{y}-12-31")
+        age = (valuation_date - days).days.to_numpy()
+        cday = sum(share[k] * F[k](age) for k in share.index)
+        cum = np.concatenate([[0.0], np.cumsum(cday)])
+        s0 = (q["period_start"] - days[0]).dt.days.to_numpy()
+        e0 = (q["period_end"] - days[0]).dt.days.to_numpy() + 1
+        rowc = (cum[e0] - cum[s0]) / (e0 - s0)
+        avg = np.average(rowc, weights=q["exposure_clean"])
+        out[pos[q.index].to_numpy()] = rowc / avg if avg > 0 else 1.0
+    return out
+
+
 def build_model_target(claims, policies, line="motor", adj=None, excess_on_liability=True,
                        completeness_method="ref_year", valuation_date=VALUATION_DATE, years=YEARS):
     """Modelling frame for one line: row_id, year, exposure_clean, target (2025 level), weight.
@@ -262,5 +285,7 @@ def build_model_target(claims, policies, line="motor", adj=None, excess_on_liabi
     df = policies[["row_id", "year", "exposure_clean"]].copy()
     df["target"] = df["row_id"].map(per_row).fillna(0.0)
     df["weight"] = df["exposure_clean"] * df["year"].map(comp)
+    if ROW_COMPLETENESS:
+        df["weight"] = df["weight"] * row_timing_factor(mc, policies, valuation_date)
     loading = (mc["net_adj_uncapped"] - mc["net_adj"]).sum() / df["weight"].sum()
     return df, comp, loading
