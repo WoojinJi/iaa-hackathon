@@ -873,6 +873,49 @@ differ by more than 1%).
   submissions, because the book's own loss experience (which a real acquirer would request) is not available.
 - Expected public for p2_v4_brokerload: 0.139-0.142.
 
+- Result: p2_v4_brokerload 0.14133 (expected 0.139-0.142; theory from the probe curves 0.1413). Selected as the
+  current final Part 2 submission.
+- Follow-up (same day): the Dataset Description says paid_to_date is net of excess, and closed claims have
+  paid = incurred (100%) while 16-29% have incurred <= excess, so the claim amounts may already be net of excess and
+  our target deducts it twice. Removing the second deduction raises the emerging target x1.20 / x1.05 / x1.19
+  (renewals about x1.17), which would explain the common layer (renewal k* 1.24) and leave about 1.3 for new
+  business. Being checked before any change (claims by voluntary excess level).
+
+### Claim amounts are net of excess: the target deducted it twice (Oct 24) [notebook 23]
+- **Evidence:** the Dataset Description says paid_to_date is net of excess and incurred = paid + case estimate;
+  closed claims have paid = incurred (100%) while 16-29% have incurred <= excess (impossible if gross: the insurer
+  would pay 0). Claim frequency falls with the voluntary excess (motor own damage, excess 1,000 vs 0: 0.47 emerging,
+  0.59 developed): losses below the excess are not reported, and reported amounts are loss minus excess. No zeros;
+  small amounts appear at every excess level. The Oct 16 reading ("gross, because some incurred <= excess") had the
+  evidence backwards [AI 107].
+- **Effect:** removing the second deduction raises the emerging target x1.20 motor, x1.05 buildings, x1.19 contents
+  (developed x1.12 / 1.05 / 1.18). Invisible to validation, which deducts twice on both sides.
+- **Decision:** `AMOUNTS_NET` in src/target.py (default False, so Part 1 reproduces v12 and its tests); on in PART2,
+  for the emerging and the developed data used there (developed relativities, fire rate).
+- **Part 1:** the final v12 has the same double deduction (developed target about 11-18% low by line). Part 1 is
+  closed; reported as a limitation, consistent with the leaderboard favouring a higher level throughout Part 1.
+- **New-business load re-estimated:** decomposition suggests about 1.3 (1.51 / 1.16). Submissions after the 8 pm
+  reset: v5a (fix only), expected about 0.135; v5 (fix + new business x1.3), expected 0.140-0.145. The two give the
+  new-business optimum on the corrected basis.
+
+- **Run (Oct 24):** tests 46 passed; Part 1 pipeline unchanged (AMOUNTS_NET off). Part 2 with the fix: motor
+  emerging level factor 0.742 -> 0.784 (consistent with x1.20 emerging vs x1.12 developed), fire rate 96.04 -> 97.05.
+  Validation 2024 (actuals now on the corrected definition, so D² not comparable with earlier rows): pooled D² 0.1071,
+  A/E 1.006; lowest decile motor 0.80, buildings 0.35 (modelled part 0.59), contents 0.74 (one small year).
+  A correction of the target definition, decided by the documentation, not by the score (as on Oct 19).
+- v5 total +1.3% vs v4 (fix about +15%, load 1.5 -> 1.3). Expected public: v5a (fix only) 0.131-0.137;
+  v5 (fix + new business x1.3) 0.139-0.145, about equal to v4: the point of v5 is the definition, not the score.
+
+### Part 1 impact of the double excess deduction, measured by a late submission (Oct 24)
+- v12_net_late = v12 with only the second excess deduction removed (tools/exp_freqsev.py, AMOUNTS_NET on); does not
+  change the Part 1 result or selection. Expected vs v12, written before submitting: +0.001 to +0.003.
+- **Result:** private 0.13301 / public 0.12670 vs v12 private 0.13099 / public 0.12336. The error cost Part 1
+  **0.0020 on the private score** (0.0033 public). Total +8.9% (motor +10.9%, buildings +4.7%, contents +16.5%),
+  correlation 0.997: mostly level. The freq x sev rule gave the same choice on the corrected target (motor adopted,
+  +0.0019; buildings failed the tails).
+- For reference, the E10 stack (not selected, tier 3) had private 0.13311, +0.0021 over v12, at the cost of
+  over-pricing the safest 10% by 30-40% in validation.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 

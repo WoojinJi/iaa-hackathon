@@ -26,6 +26,7 @@ Usage (repository root, terminal):
   python tools/exp_stack.py --validate --lines buildings   # one line
   python tools/exp_stack.py --validate --models lgb cat xgb   # without the neural network (faster)
   python tools/exp_stack.py --out submissions/stack_experiment.csv --compare submissions/v11.csv
+  python tools/exp_stack.py --why            # E10b: features (all vs v11) x weights (chosen vs equal)
 """
 import argparse
 import copy
@@ -318,7 +319,7 @@ def stack_weights(H, y, w, step=0.05):
     return best_w, best
 
 
-def fit_stack(tr, feats, models, tag=""):
+def fit_stack(tr, feats, models, tag="", refit_all=False):
     """Choose lengths and stack weights on the last training year, then refit every model on all of tr."""
     inner, hold = split(tr)
     hy, hw = (hold.target / hold.weight).to_numpy(), hold.weight.to_numpy()
@@ -337,7 +338,7 @@ def fit_stack(tr, feats, models, tag=""):
     log(f"{tag}stack weights " + ", ".join(f"{n} {x:.2f}" for n, x in zip(models, weights)) + f"; D2 {s:.4f}")
     fitted = {}
     for name, wt in zip(models, weights):
-        if wt > 1e-9:
+        if wt > 1e-9 or refit_all:
             t0 = time.time()
             fitted[name] = MODELS[name]().fit(tr, feats, n=lengths[name])
             log(f"{tag}{name}: refitted on all training years ({time.time() - t0:.0f}s)")
@@ -395,6 +396,69 @@ def validate(lines, models, data_dir=None, with_v11=True):
     return t
 
 
+# ------------------------------------------------------------------ E10b: features x weights
+def stack_config(features):
+    """features="all": E10 (every non-leaking feature, relative premium in all lines).
+    features="v11": the v11 feature set (stability drops, premium in contents only); trees, so no
+    hand-built interactions."""
+    if features == "all":
+        return blackbox_config()
+    cfg = copy.deepcopy(PART1)
+    cfg["interactions"] = {}
+    return cfg
+
+
+def why_stack(lines, models, data_dir=None):
+    """2 x 2: features (all vs v11's) x stack weights (chosen on the last training year vs equal).
+    The same fitted base models give both weightings, so only the feature sets add fits."""
+    cfg_v = copy.deepcopy(PART1)
+    if data_dir:
+        cfg_v["data_dir"] = Path(data_dir)
+    claims = load_claims(cfg_v["data_dir"])
+    rows = []
+    for line in lines:
+        dv = build_line(line, cfg_v, claims)
+        for feats_name in ["all", "v11"]:
+            cfg = stack_config(feats_name)
+            if data_dir:
+                cfg["data_dir"] = Path(data_dir)
+            d = build_line(line, cfg, claims)
+            for vy, tys in cfg["folds"]:
+                tr, va = d["tr"][d["tr"].year.isin(tys)], d["tr"][d["tr"].year == vy]
+                st = fit_stack(tr, d["feats"], models, tag=f"{line} {vy} [{feats_name}] ", refit_all=True)
+                parts = {n: m.predict(va, d["feats"]) for n, m in st["models"].items()}
+                chosen = sum(st["weights"][n] * p for n, p in parts.items())
+                equal = sum(parts.values()) / len(parts)
+                rows.append({"line": line, "year": vy, "model": f"features {feats_name} / weights chosen",
+                             **metrics(va, chosen)})
+                rows.append({"line": line, "year": vy, "model": f"features {feats_name} / weights equal",
+                             **metrics(va, equal)})
+        for vy, tys in cfg_v["folds"]:
+            trv, vav = dv["tr"][dv["tr"].year.isin(tys)], dv["tr"][dv["tr"].year == vy]
+            rv, _ = predict_rate(line, cfg_v, trv, vav, dv["feats"])
+            rows.append({"line": line, "year": vy, "model": "v11 (ours)", **metrics(vav, rv)})
+    r = pd.DataFrame(rows)
+    t = r.pivot_table(index=["line", "model"], columns="year", values=["D2", "low", "top"])
+    t.columns = [f"{m}_{y}" for m, y in t.columns]
+    t["D2_avg"] = t[["D2_2023", "D2_2024"]].mean(axis=1)
+    tail = lambda x: max(abs(x[c] - 1) for c in x.index if c.startswith(("low_", "top_")))
+    t["worst_tail"] = t.apply(tail, axis=1)
+    print("\nE10b: why the stack did not beat v11 (out-of-time; worst_tail = largest distance of the safest / "
+          "riskiest decile A/E from 1)")
+    print(t.round(4).to_string())
+    print("\nD2 average minus v11, by features (rows) and stack weights (columns):")
+    for line in lines:
+        base = t.loc[(line, "v11 (ours)"), "D2_avg"]
+        print(f"  {line}")
+        for f in ["all", "v11"]:
+            c = t.loc[(line, f"features {f} / weights chosen"), "D2_avg"] - base
+            e = t.loc[(line, f"features {f} / weights equal"), "D2_avg"] - base
+            print(f"    features {f:3s}:  chosen {c:+.4f}   equal {e:+.4f}")
+    print("  Reading: if 'v11' features beat 'all', the put-back unstable features hurt (5);"
+          " if 'equal' beats 'chosen', one-year stack weights over-fitted (6).")
+    return t
+
+
 def run(out, models, data_dir=None, lines=None):
     cfg = blackbox_config()
     if data_dir:
@@ -425,11 +489,15 @@ def main():
     ap.add_argument("--out", help="write the stack submission here (experiment only)")
     ap.add_argument("--compare", help="compare with this submission (e.g. submissions/v11.csv)")
     ap.add_argument("--validate", action="store_true", help="out-of-time folds, stack vs v11")
+    ap.add_argument("--why", action="store_true", help="E10b: features (all vs v11) x weights (chosen vs equal)")
     ap.add_argument("--lines", nargs="+", default=list(PART1["lines"]))
     ap.add_argument("--models", nargs="+", default=ALL_MODELS, choices=ALL_MODELS)
     ap.add_argument("--no-v11", action="store_true", help="skip the v11 rows in validation")
     ap.add_argument("--data", help="data directory (default: the config's)")
     a = ap.parse_args([] if "ipykernel" in sys.modules else None)
+    if a.why:
+        why_stack(a.lines, a.models, a.data)
+        return
     if a.validate:
         validate(a.lines, a.models, a.data, not a.no_v11)
         return

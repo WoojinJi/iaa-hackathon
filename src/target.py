@@ -20,6 +20,9 @@ LIABILITY_PERILS = {"bodily_injury", "third_party_prop"}
 # Individual claims are capped here for modelling; the excess becomes a loading.
 LARGE_LOSS_CAP = 500_000
 
+# Claim amounts already net of excess (Dataset Description; DECISIONS Oct 24). False reproduces Part 1.
+AMOUNTS_NET = False
+
 # Two claims identical on all of these columns are one duplicated record.
 DUP_KEY = ["policy_id", "line", "peril", "loss_date", "report_date", "status",
            "paid_to_date", "incurred_to_date", "recoveries"]
@@ -76,7 +79,7 @@ def load_claims(data_dir=DATA_DIR, drop_duplicates=True, drop_repudiated=True):
     return c
 
 
-def match_claims(claims, policies, line, excess_on_liability=True, cap=LARGE_LOSS_CAP):
+def match_claims(claims, policies, line, excess_on_liability=True, cap=LARGE_LOSS_CAP, amounts_net=None):
     """Attach each claim to the policy period containing its loss date.
 
     Returns one row per matched claim with:
@@ -92,6 +95,8 @@ def match_claims(claims, policies, line, excess_on_liability=True, cap=LARGE_LOS
     c["excess"] = c["voluntary_excess"] + c["compulsory_excess"]
     if not excess_on_liability:
         c.loc[c["peril"].isin(LIABILITY_PERILS), "excess"] = 0
+    if AMOUNTS_NET if amounts_net is None else amounts_net:
+        c["excess"] = 0.0   # amounts are already net of excess: do not deduct it again
     c["net"] = np.maximum(np.maximum(c["incurred_to_date"] - c["excess"], 0) - c["recoveries"], 0)
     c["net_cap"] = c["net"] if cap is None else np.minimum(c["net"], cap)
     return c
