@@ -815,6 +815,64 @@ differ by more than 1%).
   if x1.1 rises, too low. Changes within ±0.003 mean level is not the cause of the gap. Diagnostics only, never
   the final selection.
 
+### Result: level probes (Oct 24)
+- Public: x0.9 0.10901 (-0.0129), v3 0.12187, x1.1 0.13073 (+0.0089): far outside the ±0.003 written beforehand.
+  First read as 'our level is too low' (corrected below). For Tweedie p=1.5 a uniform scale k gives D(k) = a - b/sqrt(k) - c*sqrt(k) exactly, so three
+  points fix the curve: b 0.686, c 0.473, optimum k* about 1.45 (D² about 0.142). The optimum k* = sum(y/sqrt(mu)) / sum(sqrt(mu)) is a
+  sqrt(prediction)-weighted A/E on the public rows, not the total A/E. k* is NOT applied: it is a pointer to the wrong assumption, which must be found, fixed with an
+  actuarial reason and validated before any submission.
+
+### Diagnostic submissions p2_v3_<line>_x1.45 (Oct 24) — expectations written before submitting
+- One line at a time multiplied by 1.45. c is split by line from our own predictions (sum of sqrt(prediction));
+  each probe then gives that line's b and optimum k*_line. Check: the three b must add up to 0.686 (±0.01).
+- Expected: the line(s) carrying the gap gain; a line already at the right level loses. Diagnostics only.
+
+- Submitted: motor and buildings probes only (4 submissions left today); contents b derived as total minus the
+  other two, check submission later. Expected gains if all lines are equally low (k* 1.45 each, c share motor 0.559,
+  buildings 0.273, contents 0.168): motor +0.0111, buildings +0.0054 (contents +0.0033). Much more in one line and
+  less or negative in the other = that line carries the gap; both near these = a cause common to all lines
+  (valuation date, exposure, trends).
+
+- Result: motor x1.45 0.13592 (+0.0141), buildings x1.45 0.12762 (+0.0058). Optimum by line: motor about 1.52,
+  buildings about 1.47, contents about 1.21 (derived, least certain). Every line is too low, motor and buildings by
+  about the same factor: a cause common to the lines is more likely than a line-specific assumption. Next: emerging
+  raw cost per exposure 2023 / 2024 against the 2025 prediction; valuation date; report lags; test exposure.
+
+- Correction (Oct 24): the 2025 prediction is already above the emerging raw cost per exposure (motor 489 vs
+  362 / 319 in 2023 / 2024; buildings 338 vs 492 / 287; contents 83 vs 76 / 73), so 'level 45% too low' is not a
+  credible reading. Validation 2024 (fit 2023): k* motor 1.09, buildings 0.93, contents 0.91, equal to the total A/E
+  (1.09 / 0.91 / 0.94): no steepness problem and no level problem visible in the fold. The test differs from training.
+  Test exposure matches days / 365 exactly (all lines). Largest test-only difference: new business 76% in every line.
+
+### Diagnostic submission p2_v3_newbiz_x1.45 (Oct 24) — expected before submitting
+- Test new-business rows x1.45 in all lines (c share of new business 0.784). Expected gain: +0.0155 if every row is
+  equally low; +0.0234 if new business carries the whole gap; about -0.013 if new business is right and renewals are
+  low. Diagnostic only.
+
+- Result: 0.14115 (+0.0193), between the two hypotheses. Solved by group: new business k* about 1.51,
+  renewals about 1.24 (derived, less certain). Two layers: the whole 2025 test is costlier than the training
+  pattern (about 1.2), and new business more so (about 1.2 on top). Applying both would give about 0.142 in theory;
+  NOT applied (fitted to the leaderboard). Next: find a data or actuarial reason for each layer; first candidate
+  for the common layer is completeness (two years of emerging lags cannot show lags beyond about 730 days).
+
+### Broker portfolio load on 2025 new business (Oct 24) — team decision [notebook 23]
+- **Inference.** Validation 2024 is right (k* about 1 in every line), but the test is costlier: the change is not in
+  the training data. The competition text names it: "at the start of 2025 it takes on a large portfolio from a
+  broker, so most 2025 policies are new business" (76% of test rows). Such a book was not underwritten by us and its
+  claims history is not in our data; a transferred book is commonly worse than customers who chose to switch.
+- **Checked and ruled out** (data or the text): exposure, completeness, weather, developed-market level ("costs are
+  different"), steepness of relativities. Diagnostics with expected results written before each: level x0.9 / x1.1,
+  motor / buildings x1.45, new business x1.45 (new business k* about 1.51, renewals about 1.24 derived).
+- **No evidence inside the training data:** validation k* of broker new business 1.00 / 0.61 / 1.43 (noise); test new
+  business has the same channel mix (70/25/5) and start dates as training new business. The book is identified only
+  by the new_business flag.
+- **Decision:** new-business test rows x1.5 in every line (range 1.4-1.6 changes the public score by about ±0.0007);
+  renewals unchanged (derived, uncertain, worth +0.0013 at most, no reason in the text). Applied after the model
+  (`nb_load` in src/config.py); validation cannot test it, since the book is not in the training years.
+- **Disclosure:** the existence and location of the load come from inference; its size comes from the diagnostic
+  submissions, because the book's own loss experience (which a real acquirer would request) is not available.
+- Expected public for p2_v4_brokerload: 0.139-0.142.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 

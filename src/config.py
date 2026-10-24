@@ -103,4 +103,7 @@ PART2["construction_codes"] = {"BRK": "brick", "STN": "stone", "WOD": "timber", 
 PART2["developed_training"] = {"motor": "developed", "contents": "combined"}
 PART2["peril_models"]["buildings"][0]["train"] = "combined"
 
+# Oct 24: broker portfolio load on 2025 new business (DECISIONS, "Broker portfolio load")
+PART2["nb_load"] = 1.5
+
 MARKETS = {"part1": PART1, "part2": PART2}

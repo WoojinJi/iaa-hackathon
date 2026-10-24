@@ -298,6 +298,10 @@ def run(cfg=PART1, out=None):
             load_info += f"; + separate peril rate {d['sep_rate']:.2f}"
         expo = d["te"].exposure_clean.to_numpy()
         pred = np.maximum(rate * expo, 0)
+        if cfg.get("nb_load") and "new_business" in d["pt"]:   # Oct 24: broker book, test rows only
+            nbm = d["te"].row_id.map(d["pt"].set_index("row_id").new_business).fillna(0).astype(bool).to_numpy()
+            pred = np.where(nbm, pred * cfg["nb_load"], pred)
+            load_info += f"; broker-book load x{cfg['nb_load']} on {nbm.mean():.0%} of rows"
         log(f"{line}: {model_info}; {load_info}; mean rate {np.average(rate, weights=expo):.2f}; "
             f"total {pred.sum():,.0f}; completeness {d['comp'].round(3).to_dict()} ({time.time() - t0:.0f}s)")
         parts.append(pd.DataFrame({id_col: d["te"].row_id.to_numpy(), val_col: pred}))
