@@ -1058,6 +1058,8 @@ differ by more than 1%).
 - **E25 result:** no feature passed the screen inside 2023 (largest CV gain +0.0003: wind_exposure_index; then wildfire_index, smoke_alarms, new_business, energy_rating +0.0002), so E25 = E24 (combined): 2024 D2 +0.0266, lowest decile (largest removed) 0.515 -> 0.320. **Not adopted.** Buildings other perils stay on emerging data only.
 - Reading: the combined model's over-pricing of the safest 2024 decile is not visible in 2023 as a feature-level difference (the year, an overall shape, or chance). A Buhlmann-Straub correction (E26) was considered and not run: with between-level variance about zero in 2023 its credibility would be near 0 and reproduce E24, at the cost of a third use of 2024.
 - For the report: protecting the safest decile costs about +0.027 buildings validation D2; the attempt to keep the gain found no basis in 2023.
+- **E25 re-run (screen inside 2023 only, ridge-scale fixed, AI 113; cost-scale alpha 10):** selected wind_exposure_index +0.0028, wildfire_index +0.0023, new_business +0.0021, energy_rating +0.0020, smoke_alarms +0.0017 (CV D2 gains). The earlier 'no basis in 2023' is withdrawn. These five are now judged once on 2024 under the unchanged E25 rule; this is the third use of 2024 for the buildings combined question (E24, E25 first run, this run), disclosed before running.
+- **E25 re-run result:** 2024 D2 0.0684 -> 0.0931 (+0.0247; combined alone 0.0950); lowest decile with the largest loss removed 0.515 -> 0.346 (0.17 further from 1; limit 0.1); top 0.889 -> 0.861. **Not adopted.** The five corrections recover little of the safest-decile gap: its cause is not these features. Fifth time the same direction (E17b, E18, E24, E25 twice): buildings other perils stay on emerging data only (final).
 
 ### Trend leverage restored for net amounts (Oct 24, notebook 28) — definition, not score
 - Register (ASSUMPTIONS 4): trends apply to the ground-up loss with the excess fixed, so the net grows faster (leverage).
@@ -1070,6 +1072,69 @@ differ by more than 1%).
   unless its public score is below 0.1420 (then look for a bug). New-business load unchanged (x1.3).
 - Run: totals v7/v6 motor +1.17%, buildings +0.73%, contents +0.83% (all +1.03%), correlation >= 0.9999; tests passed.
 - **p2_v7 public (Oct 24, 21:12): 0.14336**, inside 0.1426-0.1440; +0.0001 over v6. **p2_v7_leverage is the Part 2 final.**
+
+### H2a: do new-business relativities differ from renewals? (Oct 24, notebook 28) — rule fixed before running
+- Question behind the broker-book ranking hypothesis, tested where new business is plentiful: the developed market (2021-24). No emerging 2024 use.
+- Base o: GLM on developed 2021-23, all rows (Part 1 GLM settings, the features shared with emerging), per line.
+- For each feature: a one-feature correction on top of o (offset via y/o, weight w*sqrt(o); alpha 10), fitted on 2021-23 new-business rows,
+  scored on 2024 new-business rows (out of time). Control: the same on renewal rows. Signal = new-business gain - renewal gain.
+- Rule: any feature with signal >= +0.002 (any line) -> new-business relativities differ; candidate = new-business corrections for those
+  features, tested once on the emerging 2024 fold under the GLM rule. All signals < +0.001 -> no support; the broker-book tilt probes (2b) are dropped.
+  In between: recorded only.
+- **H2a result (re-run after the ridge-scale fix, AI 113; cost-scale alpha 0.5):** renewal control -0.0004 to +0.0007 (instrument alive). Motor: no feature >= 0.002 (largest listed_building +0.0008): new-business relativities match renewals. Buildings: rainfall_mm +0.0057, flood_zone +0.0026. Contents: distance_to_river_km +0.0027, freezing_days +0.0024, energy_rating +0.0023, building_age +0.0021, voluntary_excess +0.0020. **Rule met (home lines): new-business relativities differ, mainly location and weather.**
+- Caveats: about 120 feature tests (some may pass by chance; new-business 2024 sample about 28k rows per line); developed new business is not the broker book (indirect evidence).
+- Next (E26, to be fixed before running): new-business corrections for these features, fitted on developed new business 2021-24 (offset on the developed base), applied to emerging new-business rows only with each line's new-business total held fixed. The emerging 2024 fold has too few new-business losses to judge (buildings 35, contents 64); adoption rule to be decided by the team.
+
+### Ridge scale error in offset corrections (E21, E25, H2a) — found Oct 24, 21:17 (notebook 28) [AI 113]
+- Corrections were fitted on y/o with weight w*sqrt(o). sklearn's penalty is on the weighted mean deviance, and Tweedie p=1.5 deviance scales
+  with sqrt(amount), so alpha on this scale equals alpha on the cost scale times mean(sqrt(o)) (motor about 22, buildings about 17, contents about 9.5).
+- Check (emerging motor 2023, one feature): driver_age_band spread at alpha 10 is 1.37 on the cost scale but 1.02 on the ratio scale.
+- Affected: E21 (alpha 10 / 2), E25 (alpha 10), H2a (alpha 10): corrections were shrunk almost to zero (H2a's renewal control was exactly 0).
+  Their conclusions are withdrawn. Fix: alpha_ratio = alpha_cost / weighted mean of sqrt(o). Same rules re-run; E25 uses 2024 a second time (disclosed).
+- **E21 re-run:** (cost-scale alpha motor 10, contents 2, rescaled) motor D2 0.0373 -> 0.0360 (-0.0014), contents 0.0553 -> 0.0411 (-0.0142, top decile 0.97 -> 0.65): **not adopted.** Sensitivity: alpha x0.3 motor 0.0285, contents 0.0005; x3 motor 0.0378, contents 0.0537. The less shrinkage, the worse: one year of emerging data over-fits emerging-specific relativities. Market levels differ (motor frequency x1.35, severity x0.55) but the developed relativities transfer.
+
+### Developed vs emerging, peril level, and the borrowed amount assumptions (Oct 24, 21:20, notebook 28)
+- 2023 policy year (mature in both), net of excess and recoveries, no trend, uncapped; ratio emerging / developed:
+  motor frequency x1.35, severity x0.55, cost x0.74 (BI severity x0.45, glass frequency x1.55); buildings x1.00 / x1.18 / x1.19
+  (fire x3.0 = 2023 cluster; escape of water x0.45); contents x0.85 / x0.92 / x0.78. Emerging: more claims, cheaper claims (motor).
+  Largest mix difference: channel (TVD 0.45). construction_type TVD 1.00 is the raw local codes (mapped in the pipeline).
+- Checked because severity levels differ:
+  1. Motor Pareto (borrowed alpha 2.05, threshold 100k): emerging has 3 claims > 100k, 8 > 55k; loading 0.02%-0.49% of the rate
+     under any threshold / alpha (current 0.31%). No change.
+  2. Caps: no emerging motor claim > 500k; contents uncapped; buildings 300k cuts one claim (-1.0%). No change.
+  3. Severity trends (not testable; sensitivity for the report and the office premium table): all trends -2 / +2 points:
+     motor -2.4% / +3.5%, buildings -1.8% / +3.0%, contents -3.4% / +3.4%.
+  4. Fire: emerging 2024 severity 53,585 (median 28,466) and frequency 1.74 per 1,000 match developed 2021-24
+     (50,509-54,347; 27,240-29,850; 1.68-2.06). The x1.3 severity is the 2023 cluster. Developed rate 97.05 kept.
+
+### E26: new-business corrections for home lines from developed new business (Oct 24, notebook 28) — rule fixed before running (decided by Woojin)
+- Features (passed H2a): buildings rainfall_mm, flood_zone; contents distance_to_river_km, freezing_days, energy_rating, building_age,
+  voluntary_excess. Motor unchanged (H2a: no difference).
+- Fit: developed base GLM on all developed rows 2021-24 (Part 1 settings); one correction GLM per line on developed new-business rows
+  2021-24 (offset on the base; cost-scale alpha 0.5 converted to the ratio scale, AI 113).
+- Apply: emerging new-business rows only; each line's new-business total held equal to v7 (the x1.3 load unchanged; ranking only);
+  correction factors clipped to 0.67-1.5 (bands come from developed weather and location). Renewals unchanged.
+- Emerging 2024 fold: direction check only (new-business losses: buildings 35, contents 64), not a decision input.
+- Adoption (option a, team): adopted on the developed out-of-time evidence (H2a). The leaderboard is a guard only:
+  p2_v8 is withdrawn (v7 stays final) if its public score is below v7 - 0.001 = 0.14236. **Expected public: 0.1433-0.1455.**
+- Run: test new-business factors (after clipping) buildings p10/p50/p90 0.725 / 0.865 / 1.021, clipped 8.7%; contents 0.720 / 0.907 / 1.122, clipped 4.8%; totals by line equal to v7; correlation with v7 0.9947. Emerging 2024 (direction only): buildings new-business D2 -0.0220 -> -0.0158, contents 0.0222 -> 0.0212.
+- **p2_v8 public (Oct 24, 21:35): 0.14077**, below the guard 0.14236 (-0.0026 vs v7). **Withdrawn; v7 stays final.** Developed new-business relativities do not carry to the broker book, or the developed weather bands do not transfer (buildings factors skewed, 8.7% clipped). The guard worked as intended.
+
+### Diagnostic: actual 2025 weather (Oct 24, notebook 28) — written before submitting (decided by Woojin)
+- p2_diag_weather_actual = v7 with weather_mode "actual" (training rows get their own year's weather, test rows 2025 weather); nothing else changed.
+- Why: 2025 weather is unusual (freezing days 17 -> 29, hail days 17 -> 11); E19 found no gain in the 2024 fold (a normal year).
+- Expected vs v7 (0.14336): >= +0.005 -> 2025 weather explains a large part of the gap to the leaders; within +-0.002 -> not the cause.
+- **Diagnostic only: the final selection does not use 2025 weather** (unknown when pricing; Part 1 E4, E19). Reported as the gap that
+  information unavailable at pricing time would close.
+- Run: totals vs v7 motor 0.9998, buildings 0.9791, contents 0.9756; correlation 0.988-0.996.
+- **p2_diag_weather_actual public (Oct 24, 21:37): 0.14399**, +0.0006 vs v7: within +-0.002, so 2025 weather is not the cause of the gap to the leaders. Not used for the final (v7 stays). Value of information unavailable at pricing time: about +0.0006 public.
+
+### Model frozen at v7 (Oct 24, 21:45) — decided by Woojin
+- Part 2 final: **p2_v7_leverage (public 0.14336)**. After 21:45 no model change unless a definition error is found (as the excess and leverage fixes).
+- Tonight, not adopted: E14 (motor freq x sev), E24 / E25 (buildings combined), E21 re-run (emerging relativities), E26 / v8 (new-business
+  corrections; withdrawn by the guard, public 0.14077); diagnostic only: actual 2025 weather (public 0.14399, +0.0006, not used).
+- Remaining days: tests for the new target code, bootstrap interval for the new-business load, Part 2 column of the assumptions register,
+  office premium table (Krista), report, video, reproducibility check from a fresh clone.
 
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
