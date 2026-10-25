@@ -1136,6 +1136,22 @@ differ by more than 1%).
 - Remaining days: tests for the new target code, bootstrap interval for the new-business load, Part 2 column of the assumptions register,
   office premium table (Krista), report, video, reproducibility check from a fresh clone.
 
+### Independent target audit (Oct 24, 22:37) — results/target_audit/ [AI 114]
+- Fresh chat (Claude Opus 5.5): stage 1 designed the target from the Overview and Dataset Description only; stage 2 compared with src/target.py,
+  config and DECISIONS; stage 3 checked exposure, frequency, severity, a step waterfall and year / market comparisons on the data (PDF, 14 pages).
+- **Definition matches on every core step**, found blind: amounts already net of excess (not deducted again; closed claims under 100 CU exist at
+  excess 1,000: motor 6.7%, buildings 8%), recoveries, declined claims, date-based exposure, row totals, trend on ground-up loss with the excess
+  fixed. Check: sum(target)/sum(weight) from build_model_target equals the direct calculation (494.7 / 441.7 / 97.2); frequency x severity
+  = cost per exposure at every step.
+- New level items, all judgement and within +-1% per line, partly offsetting; **no model change** (v7 stays):
+  BI completeness by count vs amount (0.545 vs 0.518): motor +0.6% to +1.0% under; BI reports after 730 days (developed 1.45%): motor +0.4%;
+  subsidence completeness from 52 claims (0.753 vs developed 0.662): buildings +0.5% (sensitivity up to +5%); open-claim recoveries not
+  reflected (known): motor -0.6%. Recorded as known limitations.
+- Cost concentration: renewal_decision = declined_by_insurer rows are 0.1-0.5% of exposure but 22% / 51% / 21% of 2025-level cost
+  (motor / buildings / contents); a marker after large claims, not a termination (75-95% of these policies are in the test). Not a feature
+  (leakage); used in the report to explain Tweedie D2 volatility and the uncertainty of two training years.
+- 2023 buildings fires rise each quarter (9, 12, 13, 15): a regional cluster building up, not one event.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
