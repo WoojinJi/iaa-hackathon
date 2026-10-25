@@ -107,5 +107,6 @@ PART2["peril_models"]["buildings"][0]["train"] = "combined"
 PART2["nb_load"] = 1.3                        # re-estimated after the excess fix (was 1.5 in v4)
 PART2["amounts_net"] = True                   # Oct 24: claim amounts are net of excess
 PART2["row_completeness"] = True              # Oct 24 (E22): completeness of each row's own period
+PART2["premium_lines"] = ["contents"]         # Oct 24 (E23): relative premium, contents only (+0.0014 D2)
 
 MARKETS = {"part1": PART1, "part2": PART2}

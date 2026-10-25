@@ -569,7 +569,7 @@ results/checks_part1/schema.json`; follow-up cells in `notebooks/20_part2_day1.i
   the test level by about 13%.
 
 ### Other decisions
-- **gender:** used (allowed for pricing in this market, Dataset Description).
+- **gender:** allowed for pricing in this market (Dataset Description) and in every feature list, but effective in buildings only (F/M 0.974; emerging-only training). Motor (developed relativities) and contents (combined) drop it because the developed table has no gender column (F/M 1.000, checked Oct 24 notebook 26); motor region levels E01-E06 are likewise not learned. Restoring them was tested as E21 (+0.0002 / +0.0004).
 - **BI reform factor 0.83:** not applied. It is a developed-market legal change; the emerging data start in
   2023 and show no step to test.
 - **Weather:** address average of 2023–24 (Part 1 E4 method). `weather.parquet` includes 2025 (the Dataset
@@ -1010,6 +1010,16 @@ differ by more than 1%).
 - Buildings accidental_damage_cover: A/E without cover 0.77 [0.59, 0.98], with cover 1.11 [0.69, 1.60]; intervals overlap; vs line A/E 0.91, z = -1.4 -> not adjusted (Limitations).
 - Conclusion with the E9-P2b rerun: the 2024 validation does not support finer redistribution than the current model.
 - Data checks (results/checks_part2, run Oct 23) reviewed: customer_service_contacts is post-claim (mean 2.9-3.4 with a loss vs 0.42-0.45 without; test 0.40 on every line), confirmed leakage, not a model feature on any line. licence_points (customers.parquet snapshot): 0.91-0.94 with a loss vs 0.90 without, test 0.903 -> no time leakage; backlog item closed. prior_claims_5y: 0.32-0.36 with a loss vs 0.26-0.27 without, test 0.26-0.27; the loss-row mean is far below 1, so a policy's own claims are not counted -> no leakage. Targets of exactly 300,000 are the buildings cap applied after adjustment (fire claim, incurred 361,093, sum insured 362,000), not a raw value.
+
+### E23: relative premium on the v5 structure (Oct 24, notebook 27) — rule fixed before running
+- Column audit of both data folders against the feature lists (src/features.py EXCLUDE, config DROP, predict_rate):
+  every exclusion re-checked with a one-way fit 2023 -> 2024; only written_premium was excluded without a test on the current structure (E16 +0.0035 on the old base).
+- Rule (Part 2 GLM rule): adopt per line if 2024 D2 +0.0005 or more and neither tail moves more than 0.1 further from 1.
+- Result, base -> prem_rel: motor 0.0373 -> 0.0371 (no); buildings 0.0684 -> 0.0688 (+0.0004, no; low decile 0.35 -> 0.54);
+  contents 0.0539 -> 0.0553 (+0.0014; low 0.74 -> 0.86, top 0.99 -> 0.97) -> **adopted in contents** (as in Part 1). Pooled all-lines +0.0003.
+- Not the cause of the leaderboard gap. Limitation (as Part 1): circular, inherits the insurer's own relativities.
+- **p2_v6 (v5 + E23) expected public, written before submitting: 0.1425-0.1450** (contents gain about half carried over, as before).
+  v6 becomes the final unless its public score is below 0.1420 (then investigate, keep v5).
 
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
