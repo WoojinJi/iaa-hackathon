@@ -30,6 +30,7 @@ import src.pipeline as P  # noqa: E402
 from src.config import PART1, PART2  # noqa: E402
 from src.evaluate import evaluate  # noqa: E402
 from src.target import load_claims  # noqa: E402
+import src.target as T  # noqa: E402
 
 _DEV = {}
 
@@ -71,13 +72,14 @@ def bb_rates(em, dev, X, feats, cfg, line):
 
 def validate(lines, data_dir=None):
     ours, bb = copy.deepcopy(PART2), E.blackbox_config()
+    T.AMOUNTS_NET, T.ROW_COMPLETENESS = bool(ours.get("amounts_net")), bool(ours.get("row_completeness"))  # as pipeline.validate
     if data_dir:
         ours["data_dir"] = bb["data_dir"] = Path(data_dir)
     claims = load_claims(ours["data_dir"])
     rows, pooled = [], {}
     for line in lines:
         dev = dev_table(line)
-        for name in ["ours (v3)", "black box, emerging only", "black box, combined"]:
+        for name in ["ours (current PART2)", "black box, emerging only", "black box, combined"]:
             t0 = time.time()
             cfg = ours if name.startswith("ours") else bb
             d = P.build_line(line, cfg, claims)
@@ -117,6 +119,7 @@ def validate(lines, data_dir=None):
 
 def run(out, data_dir=None):
     cfg = E.blackbox_config()
+    T.AMOUNTS_NET, T.ROW_COMPLETENESS = bool(cfg.get("amounts_net")), bool(cfg.get("row_completeness"))  # as pipeline.run
     if data_dir:
         cfg["data_dir"] = Path(data_dir)
     claims = load_claims(cfg["data_dir"])

@@ -996,6 +996,12 @@ differ by more than 1%).
 - S_v5 - S_v5a = +0.00746, inside the pre-registered window. NB optimum on the corrected basis x1.292; expected public at the optimum 0.14287 (v5 is 0.00000 below it).
 - Decision (rule set before the scores): **p2_v5_net is the Part 2 final.** No fine-tuning.
 
+### 2026-10-24 20:15 — E9-P2b rerun on the corrected target (notebook 26)
+- Patch: tools/exp_blackbox_p2b.py calls build_line directly and did not set T.AMOUNTS_NET / T.ROW_COMPLETENESS (set only in pipeline.run / validate), so after the Oct 24 fixes it would have compared all models, and the actuals, on the old target. It now sets them from its config, as the pipeline does.
+- Validation (fit 2023 + developed 2021-24 -> 2024, all perils), D2 ours vs combined black box: motor 0.0373 vs 0.0390 (+0.0017; black-box seed spread 0.08); contents 0.0539 vs 0.0396; buildings 0.0684 vs -0.0383 (black-box A/E 0.53, level not comparable, left out of the conclusion); pooled 0.1077 vs 0.0832.
+- Rule set before the run: black box - ours >= +0.005 -> shape gap is real; < +0.002 -> stop. Motor +0.0017, contents negative -> **GBM line closed.** The public gap to the top teams (0.154-0.168) is not explained by model class on our data.
+- Signals for follow-up, validation only, credibility not yet checked: lowest-decile A/E below the line average (motor 0.79, contents 0.74, buildings 0.35) -> model may be too flat; new-business A/E by line in opposite directions (buildings 0.69, contents 1.35, motor 1.00) while the test load is one x1.3 for all lines.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
