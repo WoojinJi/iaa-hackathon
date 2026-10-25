@@ -1002,6 +1002,15 @@ differ by more than 1%).
 - Rule set before the run: black box - ours >= +0.005 -> shape gap is real; < +0.002 -> stop. Motor +0.0017, contents negative -> **GBM line closed.** The public gap to the top teams (0.154-0.168) is not explained by model class on our data.
 - Signals for follow-up, validation only, credibility not yet checked: lowest-decile A/E below the line average (motor 0.79, contents 0.74, buildings 0.35) -> model may be too flat; new-business A/E by line in opposite directions (buildings 0.69, contents 1.35, motor 1.00) while the test load is one x1.3 for all lines.
 
+### 2026-10-24 20:30 — Redistribution diagnostics on the 2024 validation; Part 2 data checks reviewed (notebook 27)
+- Rows: results/valid2024_rows_ours.csv (59,202 rows; pooled D2 0.1077, same as the E9-P2b rerun). Not committed.
+- Slope alpha (rate x (rate/mean)^alpha, total held), chosen per line on 2024 and on two policy halves: buildings 1.15 (halves 1.25 / 1.05), contents 1.10 (1.00 / 1.20), motor 0.90 (0.90 / 0.90); pooled gain +0.0009 in-sample. Rule set before the run (both halves on one side of 1 and pooled gain >= +0.002) not met -> no tilt.
+- New business by line, policy bootstrap (2,000 reps): buildings A/E 0.69 [0.35, 1.07], contents 1.35 [0.82, 1.98], motor 1.00 [0.82, 1.21]. All include 1 -> one NB load for all lines kept.
+- Buildings lowest decile A/E 0.365 [0.20, 0.56] is large-loss volatility, not mispricing: largest loss in decile 1 is 14.5k; A/E without each decile's largest loss ranges 0.28-0.88 (decile 6: one 300,000 loss is 77% of its losses). The policy bootstrap cannot produce unseen large losses, so buildings decile intervals are too narrow. A flat fire rate acting as a floor was checked and rejected (fire share 0.44 vs 0.40 in deciles 1 and 2).
+- Buildings accidental_damage_cover: A/E without cover 0.77 [0.59, 0.98], with cover 1.11 [0.69, 1.60]; intervals overlap; vs line A/E 0.91, z = -1.4 -> not adjusted (Limitations).
+- Conclusion with the E9-P2b rerun: the 2024 validation does not support finer redistribution than the current model.
+- Data checks (results/checks_part2, run Oct 23) reviewed: customer_service_contacts is post-claim (mean 2.9-3.4 with a loss vs 0.42-0.45 without; test 0.40 on every line), confirmed leakage, not a model feature on any line. licence_points (customers.parquet snapshot): 0.91-0.94 with a loss vs 0.90 without, test 0.903 -> no time leakage; backlog item closed. prior_claims_5y: 0.32-0.36 with a loss vs 0.26-0.27 without, test 0.26-0.27; the loss-row mean is far below 1, so a policy's own claims are not counted -> no leakage. Targets of exactly 300,000 are the buildings cap applied after adjustment (fire claim, incurred 361,093, sum insured 362,000), not a raw value.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
