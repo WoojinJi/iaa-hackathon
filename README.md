@@ -30,6 +30,17 @@ pip install pandas numpy pyarrow jupyter pytest scikit-learn matplotlib
 ```
 Put the parquet files in `data/`, then run notebooks from the `notebooks/` folder.
 
+## Reproduce the Part 2 final submission (v9, public 0.14477)
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-lock.txt          # exact environment used for the submissions
+# competition data (not committed): Part 1 parquet files in data/, Part 2 in data_part2/emerging and data_part2/development
+python -m src.pipeline --market part2 --out submissions/p2_v9_e27_simplified.csv
+python -m src.pipeline --market part2 --validate   # out-of-time check: 2024 D2 motor 0.0371, buildings 0.0694, contents 0.0550
+```
+Settings live in `src/config.py` (`PART2`); every change and its evidence is in `DECISIONS.md`.
+Checked on Oct 25 from a fresh clone: identical to the submitted file (max abs difference 0).
+
 ## Tests
 ```bash
 pytest -v
