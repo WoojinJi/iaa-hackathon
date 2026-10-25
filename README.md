@@ -36,6 +36,15 @@ pytest -v
 ```
 Run from the repository root. The tests use small hand-made datasets, so the competition data is not needed.
 
+| `src/history.py` | Claim-history features: claims known by 1 Jan of the policy year, same policy, previous 1 and 2 years (missing when not observable) |
+| `tests/test_history.py` | Hand-checked tests for the history features |
+| `notebooks/07_regularisation.ipynb` | Ridge strength and bands; balance correction |
+| `notebooks/08_model_v2.ipynb` | GLM v2 fit and submissions; re-validation on the corrected target |
+| `notebooks/09_lightgbm.ipynb` | LightGBM challenger; feature stability and association checks |
+| `notebooks/10_claim_history.ipynb` | Model-free check of claim history against GLM v3 |
+| `notebooks/11_history_model.ipynb` | GLM v4 (+ history), method B, GBM settings, calibration, v5 |
+| `notebooks/12_limits_check.ipynb` | Policy limits and cover consistency |
+
 ## Working together
 - Personal notebooks start with your name (e.g. `notebooks/krista_01_formula_check.ipynb`), so two people never edit the same file.
 - `src/` is changed by one person; suggest changes through GitHub Issues.
