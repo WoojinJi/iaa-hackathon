@@ -97,7 +97,9 @@ def match_claims(claims, policies, line, excess_on_liability=True, cap=LARGE_LOS
     c["excess"] = c["voluntary_excess"] + c["compulsory_excess"]
     if not excess_on_liability:
         c.loc[c["peril"].isin(LIABILITY_PERILS), "excess"] = 0
+    c["excess_in_amount"] = 0.0
     if AMOUNTS_NET if amounts_net is None else amounts_net:
+        c["excess_in_amount"] = c["excess"]   # already deducted in the amounts; kept to trend the ground-up loss (Oct 24)
         c["excess"] = 0.0   # amounts are already net of excess: do not deduct it again
     c["net"] = np.maximum(np.maximum(c["incurred_to_date"] - c["excess"], 0) - c["recoveries"], 0)
     c["net_cap"] = c["net"] if cap is None else np.minimum(c["net"], cap)
@@ -216,9 +218,10 @@ def adjust_claims(matched, adj, target_year=TARGET_YEAR, reform_year=REFORM_YEAR
     pre = c["loss_date"] < pd.Timestamp(adj.get("reform_date", f"{reform_year}-01-01"))
     sev = (1 + c["peril"].map(adj["sev_trend"]).fillna(0.0)) ** (target_year - c["loss_year"])
     sev = sev * np.where(pre, c["peril"].map(adj["reform"]).fillna(1.0), 1.0)
-    gross = c["incurred_to_date"] * sev
+    add = c["excess_in_amount"] if "excess_in_amount" in c else 0.0   # Oct 24: net amounts -> trend ground-up, excess fixed (leverage)
+    gross = (c["incurred_to_date"] + add) * sev
     rec = c["recoveries"] * sev
-    net = np.maximum(np.maximum(gross - c["excess"], 0) - rec, 0)
+    net = np.maximum(np.maximum(gross - c["excess"] - add, 0) - rec, 0)
     freq = np.where(pre, c["peril"].map(adj["freq_shift"]).fillna(1.0), 1.0)
     cap = adj["cap"]
     c["net_adj_uncapped"] = net * freq

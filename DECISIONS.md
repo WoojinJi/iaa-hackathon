@@ -1021,6 +1021,56 @@ differ by more than 1%).
 - **p2_v6 (v5 + E23) expected public, written before submitting: 0.1425-0.1450** (contents gain about half carried over, as before).
   v6 becomes the final unless its public score is below 0.1420 (then investigate, keep v5).
 
+### E14: motor frequency x severity on the v6 structure (Oct 24, notebook 28) — rule fixed before running
+- Part 1's final motor structure (E11, v12: +0.0025 validation D2) was never carried into Part 2, which uses the v11 single Tweedie GLM.
+- Design: Poisson frequency and Gamma severity GLMs, both fitted on the developed table (as v6 motor, developed relativities);
+  same features, bands, target (2025 level, capped, net of excess), completeness weights; ridge for each part chosen inside the
+  developed data (fit 2021-23, choose on 2024) from Part 1's list; one emerging level factor on 2023. Validate emerging 2024.
+- Rule: adopt if motor 2024 D2 >= base + 0.0005 and neither decile A/E moves more than 0.1 further from 1 (base 0.0373, low 0.794, top 0.894).
+- Expected: +0.000 to +0.003. If adopted, the new-business load is re-measured before any submission.
+- **E14 result:** ridge chosen on developed 2024: frequency 0.001, severity 0.01. Motor 2024 D2 0.0373 -> 0.0364 (-0.0009); low 0.794 -> 0.766, top 0.894 -> 0.846 (within the limit); emerging level x0.765. **Not adopted.** Part 1's +0.0025 does not carry over: the relativities already come from 98k developed claim rows.
+
+### Buildings ridge re-checked on the final training data (Oct 24, notebook 28)
+- Concern: sklearn's penalty is on the mean deviance, so an alpha chosen on one year (2023 CV) acts about twice as strongly on two years.
+- Same rule as Oct 23 (0.5/2/10/50/200/1000, 5-fold CV by policy): 2023 only picks 10 (CV D2 0.0012); 2023+2024 also picks 10 (0.0082; next 2: 0.0056). **No change.**
+
+### E24: buildings other perils on combined data, re-run on the corrected target (Oct 24, notebook 28) — rule fixed before running (decided by Woojin)
+- E17b / E18 (old target): combined training raised buildings 2024 D2 by about +0.02-0.03 but failed the lowest decile (rule b: 0.46 vs 0.89).
+- Notebook 27 (AI 111) showed buildings decile cost A/E is dominated by single large losses (A/E without each decile's largest loss 0.28-0.88),
+  so a one-decile, one-year cost A/E cannot separate mispricing from chance.
+- Candidates: developed weight 1 / 0.3 / 0.1 (E18 list); flood GLM and the flat fire rate unchanged; level on emerging 2023; validate 2024.
+- Rule: adopt the best candidate if 2024 D2 (all perils) >= current + 0.005 AND, with each decile's largest loss removed (modelled part, rule b),
+  neither the lowest nor the highest decile A/E moves more than 0.1 further from 1 than the current model. Rule b without removal reported too.
+- The tail reading changed before running, because of the large-loss evidence above, not because of any E24 result.
+- Rule written 21:03:33, run started 21:03:37 (Oct 24).
+- **E24 result:** 2024 D2 (all perils) current 0.0684 -> dev weight 1 / 0.3 / 0.1: 0.0950 / 0.0952 / 0.0937 (+0.027 / +0.027 / +0.025). Lowest decile A/E with each decile's largest loss removed: 0.515 -> 0.320 / 0.387 / 0.371 (0.13-0.20 further from 1; limit 0.1); top within the limit. Rule b without removal: 0.615 -> 0.370 / 0.441 / 0.426. **Not adopted.**
+- Fourth time the same result (E17b, E18 twice, E24), now with the largest loss removed: developed relativities over-price the safest emerging homes (structural, not chance). Cost of protecting the safest decile, for the report: about +0.027 buildings validation D2 forgone.
+
+### E25: buildings combined base + emerging corrections on selected features (Oct 24, notebook 28) — rule fixed before running
+- Designed after E24 failed the lowest decile (disclosed). Aim: keep the combined-data gain (+0.027) and fix the safest decile.
+- Base o: other-perils GLM on combined data (developed weight 1, pipeline default; E24's best weight 0.3 is not used because it was picked on 2024),
+  level on emerging 2023. Flood GLM and the flat fire rate unchanged.
+- Feature selection on emerging 2023 only (2024 not used): for each feature, a one-feature GLM on top of o (offset via y/o with weight w*sqrt(o),
+  exact for Tweedie p = 1.5, as E21); 5-fold CV inside 2023 grouped by policy; keep features with CV D2 gain >= +0.001, at most the top 5.
+  Developed-absent features (e.g. gender) are candidates too. One correction GLM on the selected features, alpha 10, fitted on 2023.
+- Rule (same as E24): adopt if 2024 D2 (all perils) >= current + 0.005 AND, with each decile's largest loss removed (modelled part, rule b),
+  neither tail moves more than 0.1 further from 1 than the current model. 2024 is used once.
+- **E25 result:** no feature passed the screen inside 2023 (largest CV gain +0.0003: wind_exposure_index; then wildfire_index, smoke_alarms, new_business, energy_rating +0.0002), so E25 = E24 (combined): 2024 D2 +0.0266, lowest decile (largest removed) 0.515 -> 0.320. **Not adopted.** Buildings other perils stay on emerging data only.
+- Reading: the combined model's over-pricing of the safest 2024 decile is not visible in 2023 as a feature-level difference (the year, an overall shape, or chance). A Buhlmann-Straub correction (E26) was considered and not run: with between-level variance about zero in 2023 its credibility would be near 0 and reproduce E24, at the cost of a third use of 2024.
+- For the report: protecting the safest decile costs about +0.027 buildings validation D2; the attempt to keep the gain found no basis in 2023.
+
+### Trend leverage restored for net amounts (Oct 24, notebook 28) — definition, not score
+- Register (ASSUMPTIONS 4): trends apply to the ground-up loss with the excess fixed, so the net grows faster (leverage).
+  With AMOUNTS_NET the excess was set to 0 and the trend multiplied the net amount: leverage lost.
+- Fix (src/target.py): match_claims keeps the excess already deducted in the amounts (excess_in_amount); adjust_claims trends
+  incurred + excess and deducts the excess again. Untrended amounts are unchanged; tied to AMOUNTS_NET (every entry point, developed table included).
+- Effect measured on emerging training claims (trended totals): motor x1.017, buildings x1.006, contents x1.010.
+  Frequency leverage (losses newly above the excess) is still not modelled; it would raise the level further.
+- **p2_v7 (v6 + leverage) expected public, written before submitting: 0.1426-0.1440.** Adopted by definition; v7 becomes the final
+  unless its public score is below 0.1420 (then look for a bug). New-business load unchanged (x1.3).
+- Run: totals v7/v6 motor +1.17%, buildings +0.73%, contents +0.83% (all +1.03%), correlation >= 0.9999; tests passed.
+- **p2_v7 public (Oct 24, 21:12): 0.14336**, inside 0.1426-0.1440; +0.0001 over v6. **p2_v7_leverage is the Part 2 final.**
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
