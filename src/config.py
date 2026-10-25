@@ -109,4 +109,8 @@ PART2["amounts_net"] = True                   # Oct 24: claim amounts are net of
 PART2["row_completeness"] = True              # Oct 24 (E22): completeness of each row's own period
 PART2["premium_lines"] = ["contents"]         # Oct 24 (E23): relative premium, contents only (+0.0014 D2)
 
+# Oct 25 (E27): collinear climate / vehicle groups reduced to their central variable (motor, buildings; contents fails tails)
+PART2["drop"]["motor"] = PART2["drop"]["motor"] + ["freezing_days", "dry_summer_index", "wildfire_index", "vehicle_value_group"]
+PART2["drop"]["buildings"] = PART2["drop"]["buildings"] + ["freezing_days", "dry_summer_index", "wildfire_index"]
+
 MARKETS = {"part1": PART1, "part2": PART2}

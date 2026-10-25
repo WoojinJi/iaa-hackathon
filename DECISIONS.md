@@ -1152,6 +1152,48 @@ differ by more than 1%).
   (leakage); used in the report to explain Tweedie D2 volatility and the uncertainty of two training years.
 - 2023 buildings fires rise each quarter (9, 12, 13, 15): a regional cluster building up, not one event.
 
+### Murphy decomposition and bootstrap of the new-business load (Oct 24, 23:03, notebook 29) — results/bootstrap_murphy/
+- 2024 validation rows rebuilt with the v7 structure (pooled D2 0.1081). Murphy decomposition of the Tweedie p=1.5 score (shares of the
+  constant-model deviance; recalibration by weighted isotonic regression in-sample, so MCB is an upper bound):
+  all rows D2 0.108 = DSC 0.117 - MCB 0.0085, of which one level factor removes 0.0000; new business D2 0.065 = DSC 0.090 - MCB 0.025;
+  renewals D2 0.114 = DSC 0.124 - MCB 0.010. The level is right in validation; new business ranks less well (no claim history), which is
+  76% of the test. Buildings / contents new-business MCB 0.079 / 0.072 on 35 / 64 losses: small-sample noise.
+- Bootstrap of the Tweedie-optimal scale k* (2,000 random halves of the fold by policy, spread scaled to the test public size; public share
+  unknown): new-business load 1.29 has a public-sampling 95% band of 1.19-1.39 (public 20%), 1.21-1.37 (30%), 1.23-1.35 (50%).
+  x1.3 sits in the middle; tuning within 1.25-1.35 is below sampling noise. The band covers public sampling only, not whether the broker
+  book is really 1.3x (that uncertainty is separate and larger). Approximation: validation rows scaled to test size.
+
+### E27: collinear variable groups replaced by one variable (Oct 25, notebook 30) — rule fixed before running
+- Diagnosis (no target used): VIF on numeric features (Oct 24, 02:25) mean_temperature_c 430-460, freezing_days 134-144, dry_summer_index
+  88-93, wildfire_index 5.5; engine_size_cc ~ vehicle_value_group r 0.88; plus variable clustering and Belsley condition indices (notebook 30).
+- Groups by reasoning: climate (mean_temperature_c, freezing_days, dry_summer_index, wildfire_index; all lines: address averages that
+  measure how cold / dry a place is); vehicle size and value (engine_size_cc, vehicle_value_group; motor). Contents prem_rel ~ sum_insured
+  (r 0.90) left out (E23 adopted yesterday; the insurer prices partly from the sum insured).
+- Candidates: A = keep the group's most central variable (highest mean |r| with the others), drop the rest; B = replace the group by its
+  first principal component (standardised, fitted on emerging training rows, same transform on the developed table and the test).
+- Rule (Part 1 simplification rule), per line on the 2024 fold: adopt if D2 falls by no more than 0.0005 and neither tail decile A/E moves
+  more than 0.1 further from 1. If A and B both pass, A (simpler). The model stays v7 unless a line passes.
+
+- **E27 result (Oct 25, 12:43):** first component of the climate group explains 79% (central variable mean_temperature_c);
+  vehicle group 94% (central engine_size_cc).
+  | line | current | A (keep central) | B (first component) | verdict |
+  | motor | 0.0373 (tails 0.80 / 0.89) | 0.0371 (0.79 / 0.88) | 0.0382 (0.74 / 0.94) | both pass -> A |
+  | buildings | 0.0681 (0.58 / 1.02) | 0.0694 (0.57 / 1.01) | 0.0702 (0.53 / 1.02) | both pass -> A |
+  | contents | 0.0550 (0.85 / 0.98) | 0.0558 (0.64 / 0.96) | 0.0563 (0.62 / 0.98) | both fail (lowest decile -0.21) -> keep |
+  Contents: the climate variables separate the safest customers there; removing them moves the lowest decile 0.85 -> 0.64.
+- **Decision (Woojin, Oct 25):** adopt A in motor and buildings as a simplification (7 fewer variables) under the rule fixed
+  before the run. This overrides the Oct 24 freeze for this change only, with a guard. Dropped: motor freezing_days,
+  dry_summer_index, wildfire_index, vehicle_value_group; buildings freezing_days, dry_summer_index, wildfire_index.
+- **p2_v9 expected public, written before submitting: 0.1426-0.1442** (validation change about +0.0003 pooled; within public
+  noise). **Guard: if public < 0.1420, v7 stays the final.** Pipeline validation must reproduce motor 0.0371 and buildings 0.0694.
+
+- Pipeline validation reproduced the experiment: motor 0.0371, buildings 0.0694 (rule-b tails 0.571 / 1.013), contents 0.0550,
+  pooled 0.1084. v9 vs v7 totals: motor +0.02%, buildings +0.07%, contents 0 (identical), all +0.03%; correlation motor 0.9974,
+  buildings 0.9999; row changes (5-95%) motor -5.9% to +7.4%, buildings -2.5% to +2.5%.
+- **p2_v9 public (Oct 25, 12:56): 0.14477**, +0.0014 vs v7; above the range written before submitting (0.1426-0.1442), most likely
+  public noise on top of a small real gain (validation +0.0003 pooled). Guard passed. **p2_v9_e27_simplified is the Part 2 final.**
+  Reported as: seven collinear variables removed without loss of accuracy, not as a score improvement.
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
