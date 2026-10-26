@@ -1201,7 +1201,7 @@ differ by more than 1%).
 - New-business load 1.3, public-sampling 95% band: 1.20-1.40 (public 20%), 1.22-1.38 (30%), 1.24-1.36 (50%); v7 1.19-1.39 / 1.21-1.37 /
   1.23-1.35. Report figures now on v9: results/report_figs/ (submission history, deciles, relativities).
 
-## Assumptions register (status as of Oct 22, after E1–E11)
+## Assumptions register (status as of Oct 22, after E1–E11; Part 2 results at the end, Oct 26)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
 ### Target
@@ -1260,3 +1260,38 @@ Status: **verified** (tested on data) · **judgement** (reasoned, not fully test
 | Leakage | information not known when pricing is excluded whatever its score |
 | Choosing settings | on the held-out last training year only; validation years used once |
 | Leaderboard | not used for decisions; expected change written before each submission; ±0.001 treated as noise |
+
+### Part 2 results (Oct 26, final v9) — what happened to each assumption in the emerging market
+Result: **held** (still true on Part 2 data) · **changed** (adapted to the new market) · **wrong -> fixed** (wrong since Part 1, found in
+Part 2) · **borrowed** (not testable on two emerging years; taken from the developed market) · **new** (needed only in Part 2).
+Source: **doc** (competition documents) · **data** (tested on data) · **LB** (size calibrated on diagnostic submissions, disclosed) ·
+**dev** (borrowed from the developed market).
+
+| Assumption | Part 1 | Part 2 | Result | Source | Evidence |
+|---|---|---|---|---|---|
+| Claim amounts and excess | excess deducted on every peril | amounts are already net of excess; not deducted again | **wrong -> fixed** | doc, data | Data dictionary (also in Part 1's); paid = incurred on closed claims 100%; target x1.20 / 1.05 / 1.19; Part 1 late submission private -0.0020 [AI 107] |
+| Trend with an excess | trend ground-up, excess fixed | same, restored for net amounts (excess added back before the trend) | **wrong -> fixed** | data | Lost in the Oct 24 fix; level x1.017 / 1.006 / 1.010; v7 [AI 112] |
+| Recoveries | subtracted once | subtracted once | held | data | Fixed share of incurred (0.8 / 0.3); never above incurred |
+| Claim linkage | row_id, both ends inclusive | same; 0.3-0.5% of claims before the policy's first row excluded | held | data | Independent target audit [AI 114] |
+| Declined claims | excluded | excluded | held | doc, data | Cost concentration in declined rows noted for the report [AI 114] |
+| Exposure | recomputed from dates where inconsistent | same | held | data | About 0.5% of rows wrong, inflating total exposure by about 40%; test rows consistent; 2024 rows end at the valuation date |
+| sum_insured entry error | — | x1000 entries divided by 1000 | **new** | data | Five checks fixed before looking (same policy, premium, gaps, digits, property) [AI 93] |
+| Completeness (IBNR) | Lynden-Bell by peril, yearly | each row's own period (E22) | **wrong -> fixed** | data | Late-starting new-business rows were less complete (motor 2024 0.777 vs 0.839); motor NB A/E 0.94 -> 1.00 [AI 109] |
+| Severity trends | estimated on 2021-24 | borrowed from the developed market | **borrowed** | dev | Two emerging years cannot separate trend from noise; sensitivity only |
+| BI reform factor | 0.83 on 2021-22 | none | changed | doc | A developed-market legal change |
+| Large losses, motor | cap 500k + Pareto loading (alpha from the data) | cap 500k + Pareto, alpha 2.05 borrowed, frequency from emerging | **borrowed** | dev | Too few large claims to fit a tail |
+| Large losses, buildings fire | in the GLM, observed loading | flat developed rate 97.05 per exposure | changed | data, dev | 2023 regional fire cluster (49 vs 21 claims); depth-3 tree found it [AI 98] |
+| Buildings flood | five flood-geography pairs in the GLM | own flood GLM on combined data | changed | data | E12 re-judged under the tail rule without the flat fire part [AI 102] |
+| Where relativities are learned | the same market | motor: developed; contents: developed + emerging; buildings: emerging (+ flood combined); level always from emerging | changed | data | E17: validation D2 0.0806 -> 0.1096, public 0.11185 -> 0.12187 [AI 103] |
+| New-business relativity | from data | emerging values kept | held | data | Within 2 SE of the developed market in every line (Rule 1) |
+| Broker book in the 2025 test | — | new-business load x1.3 | **new** | doc, LB | Competition text (broker book, 76% new business); not identifiable in the data; size from diagnostic submissions (x1.5 in v4, x1.3 after the excess fix); public-sampling band 1.22-1.38 [AI 106] |
+| Claim history | 1 and 2 years | 1 year only | changed | data | A 2-year window is never observable from a 2023 start; the test broker book has no history |
+| Weather for 2025 | address average | address average | held | data | Actual 2025 weather as a diagnostic: public +0.0006, not the cause of the gap |
+| written_premium | contents, by start month | contents, annual premium relative to the year | held | data | E23 +0.0014 D2; still circular |
+| Feature removals | stability and add/drop tests | + occupation (free text); + 7 collinear variables in motor and buildings (E27) | changed | data | E27: climate first component 79%, vehicle 94%; contents fails its lowest decile; v9 0.14477 [AI 115] |
+| Model per line | motor freq x sev GLMs; buildings GLM; contents GBM | one Tweedie GLM per line (+ buildings flood GLM) | changed | data | E14 (motor freq x sev) not adopted; GBMs and black boxes fail the rule (E9-P2, E9-P2b) |
+| Ridge strength | grid on two validation years | buildings alpha 10 (CV inside the training year); motor and contents keep Part 1 settings on developed / combined data | changed | data | Offset-correction ridge scale error found and re-run [AI 113] |
+| Severity independent of frequency | verified in motor | not re-tested | **borrowed** | dev | One emerging fold; severity unpredictable within a peril (E13) |
+| Validation design | two out-of-time folds | one fold (2024 on 2023) | changed | data | 6 of 9 public scores inside the range written before submitting |
+| Tail rule for buildings | all perils | modelled perils only (flat fire excluded) | **new** | data | Team decision Oct 24 [AI 102] |
+| Decision rules | fixed before results | unchanged, plus a guard for every submission | **new** | — | v8 withdrawn by its guard (public 0.14077); v9 kept by its guard |
