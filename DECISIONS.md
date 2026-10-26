@@ -1194,6 +1194,13 @@ differ by more than 1%).
   public noise on top of a small real gain (validation +0.0003 pooled). Guard passed. **p2_v9_e27_simplified is the Part 2 final.**
   Reported as: seven collinear variables removed without loss of accuracy, not as a score improvement.
 
+### Murphy decomposition and bootstrap re-run on v9 (Oct 25, notebook 31) — results/bootstrap_murphy_v9/
+- Expected before running: pooled D2 0.108-0.109; DSC, MCB, k* and the new-business band within +-0.002 of v7. **Held.**
+- Pooled D2 0.1084 (v7 0.1081) = DSC 0.1167 - MCB 0.0083; k* 1.0058. New business D2 0.0652 -> 0.0667, MCB 0.0250 -> 0.0222
+  (motor new business 0.0038 -> 0.0063); contents identical (unchanged by E27).
+- New-business load 1.3, public-sampling 95% band: 1.20-1.40 (public 20%), 1.22-1.38 (30%), 1.24-1.36 (50%); v7 1.19-1.39 / 1.21-1.37 /
+  1.23-1.35. Report figures now on v9: results/report_figs/ (submission history, deciles, relativities).
+
 ## Assumptions register (status as of Oct 22, after E1–E11)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
