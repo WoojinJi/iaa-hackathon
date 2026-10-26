@@ -32,6 +32,41 @@ gain came from actuarial structure, frequency x severity GLMs for motor (v12, 0.
 
 ---
 
+## Part 2 update (Oct 26) — this section wins where it differs from the Part 1 draft below
+
+**Thesis (unchanged):** *AI writes the code; actuaries own the assumptions.* **Part 2 addition:** the largest score gains came from
+assumptions, not model capacity: where relativities are learned (E17, 0.112 -> 0.122), the broker-book load (-> 0.141), the claim-amount
+definition (-> 0.143). The black box did not beat our GLM in either market; the Oct 22 prediction ("the black box scores higher") was
+wrong again.
+
+**Results:** Part 1 final v12 (public 0.12336, private 0.13099). Part 2 final v9 (public 0.14477), rebuilt exactly from a fresh clone
+(max difference 0).
+
+**Judging weights:** pricing performance and adaptation 40% (private scores + modelling choices, adaptation, data quality, uncertainty),
+effective AI use 25%, trust / validation / guardrails 20%, communication 15%. Task requirement: office premium for each of the 20
+reference policies. Rules 2.9: reproducible code (done).
+
+| # | Section | Content | Pages | Criterion | Draft |
+|---|---|---|---|---|---|
+| 0 | Summary | task, thesis, results, timeline | 1/2 | communication | Krista |
+| 1 | Data and target | Part 1 issues; Part 2: excess double deduction (back to Part 1, private -0.0020), sum_insured x1000, row completeness (E22), independent audits (AI 108, 114) | 3/4 | pricing (data quality) | Woojin |
+| 2 | Assumption ledger | DECISIONS "Part 2 results" table: held / changed / wrong -> fixed / borrowed / new, with source class (doc / data / LB / dev) | 3/4 | pricing (uncertainty) | Woojin |
+| 3 | Model and adaptation | GLMs, developed relativities + emerging level, flat fire, flood GLM, broker-book load, E27 simplification (v9); black-box table Part 1 + Part 2; figures: relativities, deciles | 1 | pricing (modelling, adaptation) | Woojin |
+| 4 | Office premium, 20 policies | formula, expense assumptions, the 20-row table (2-6x current premium), six open judgements; Krista's independent spreadsheet check | 1/2 | pricing; task requirement | Krista checks, Woojin writes |
+| 5 | Validation and guardrails | rules fixed before results; submission history (6 of 9 inside the written range; v8 withdrawn by its guard; v9 above); Murphy decomposition and new-business band; reproducibility; 51 tests | 1/2 | trust | Woojin, Krista edits |
+| 6 | How we used AI | roles (builder AI -> reviewer AI -> team); log counts; questions that caught errors (15, from the question log); one story in depth (the excess); quoted prompts | 3/4 | AI use | Krista drafts |
+| 7 | Limitations and lessons | broker-book size from the leaderboard, borrowed severity trends, IBNER not modelled, buildings safest decile over-priced; no claim-file reconciliation | 1/4 | pricing (uncertainty) | both |
+
+**AI log counts (Oct 26, entries 1-116, 113 in table form):** H 42 (team questioned), E 37 (AI errors), A 34 (AI proposed, team verified).
+Part 2 (93-116): H 10, E 11, A 3 — AI proposed less, the team questioned more and caught more AI errors.
+
+**Figures (docs/figs):** fig_submission_history.png (section 5), fig_deciles_v9.png (3), fig_relativities_v9.png (3); Part 1 figures as
+planned below. Still to make: assumption-ledger summary graphic or table (2), AI roles diagram (6).
+
+**Video (5 min):** keep the Part 1 plan; the last minute becomes "Part 2: assumptions moved the score".
+
+---
+
 ## 0. Summary — ½ page (Krista drafts, Woojin checks numbers)
 - Task in one sentence: next-year expected claim cost per policy period, net of excess and recoveries.
 - The thesis and three supporting points:
