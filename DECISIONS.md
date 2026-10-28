@@ -1201,6 +1201,18 @@ differ by more than 1%).
 - New-business load 1.3, public-sampling 95% band: 1.20-1.40 (public 20%), 1.22-1.38 (30%), 1.24-1.36 (50%); v7 1.19-1.39 / 1.21-1.37 /
   1.23-1.35. Report figures now on v9: results/report_figs/ (submission history, deciles, relativities).
 
+### Office premium: why the 20 policies need 2-6x the current premium (Oct 26, notebook 31) — results/office_premium_v9/
+- Multiple decomposed as office / current = (risk / current) x (office / risk). Risk alone exceeds the current premium in buildings 7 of 7
+  (1.15-2.50) and motor 6 of 7 (1.06-2.33; the direct policy M00118569 is 0.44). Contents: risk is covered in 5 of 6 (0.29-0.92), but the
+  expense multiple is 3.4-7.2 because the fixed 85 per policy is large against premiums of 83-269.
+- Portfolio loss ratio, emerging training rows (losses at the 2025 cost level / earned premium): motor 0.56 / 0.48, buildings 1.06 / 0.68
+  (2023 includes the fire cluster), contents 0.63 / 0.50 (2023 / 2024). Every line-year is at or above the broker break-even 0.49
+  (1 - 0.15 - 0.20 - 0.08 - 0.08) before the fixed expense; motor and contents are below the direct break-even 0.69.
+- The 20 policies are not representative: motor portfolio loss ratio about 0.5, but 6 of 7 motor reference policies exceed 1 on risk alone
+  (new-business load x1.3 on the broker book, which the current premium does not reflect; possibly chosen as risky examples).
+- **Open question 6 answered:** both. Buildings and motor: the current price is too low for the risk. Contents: the risk is covered, the
+  expense structure is not, so open question 3 (fixed expense per policy or per customer) decides the contents answer.
+
 ## Assumptions register (status as of Oct 22, after E1–E11; Part 2 results at the end, Oct 26)
 Status: **verified** (tested on data) · **judgement** (reasoned, not fully testable) · **open** (not yet checked) · **team decision** (to be decided by the team)
 
